@@ -20,7 +20,8 @@ public class TestClient : MonoBehaviour
 	void Start()
 	{
 		m_address = new Address {Port = 9900};
-		m_address.SetHost("127.0.0.1");
+		m_address.SetHost("192.168.202.165");
+		m_client = new Host();
 		m_client.Create();
 		m_peer = m_client.Connect(m_address);
 	}
