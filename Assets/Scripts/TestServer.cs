@@ -25,6 +25,9 @@ public class TestServer : MonoBehaviour
 
     void Update()
     {
+        if (m_server == null || m_server.IsSet == false)
+            return;
+        
         Event evt;
         m_server.Service(0, out evt);
 

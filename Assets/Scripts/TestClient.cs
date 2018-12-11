@@ -19,7 +19,6 @@ public class TestClient : MonoBehaviour
 
 	void Start()
 	{
-		m_client = new Host();		
 		m_address = new Address {Port = 9900};
 		m_address.SetHost("127.0.0.1");
 		m_client.Create();
@@ -40,6 +39,9 @@ public class TestClient : MonoBehaviour
 
 	void Update()
 	{
+		if (m_client == null || m_client.IsSet == false)
+			return;
+		
 		Event evt;
 		m_client.Service(0, out evt);
 
