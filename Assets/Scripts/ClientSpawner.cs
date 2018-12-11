@@ -17,7 +17,7 @@ public class ClientSpawner : MonoBehaviour
 			m_clients.Add(g);			
 		}
 
-		if (Input.GetKeyDown(KeyCode.Backspace))
+		if (m_clients.Count > 0 && Input.GetKeyDown(KeyCode.Backspace))
 		{
 			int index = m_clients.Count - 1;
 			GameObject obj = m_clients[index];

@@ -10,10 +10,8 @@ public class TestServer : MonoBehaviour
     
     private Host m_server = null;
 
-    void Awake()
+    void Start()
     {
-        Library.Initialize();
-
         m_server = new Host();
         Address address = new Address {Port = 9900};
         m_server.Create(address, 500);        
@@ -23,7 +21,6 @@ public class TestServer : MonoBehaviour
     {
         m_server.Flush();
         m_server.Dispose();
-        Library.Deinitialize();
     }
 
     void Update()
