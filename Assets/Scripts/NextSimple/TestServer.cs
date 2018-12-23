@@ -12,7 +12,6 @@ namespace NextSimple
 {
     public enum OpCodes
     {
-        AssumeOwnership,
         Spawn,
         Destroy,
         PositionUpdate
@@ -30,7 +29,7 @@ namespace NextSimple
         {
             m_server = new Host();
             Address address = new Address {Port = 9900};
-            m_server.Create(address, 500);
+            m_server.Create(address, 500, 100);
         }
 
         void OnDestroy()
@@ -81,7 +80,6 @@ namespace NextSimple
         {
             BaseEntity entity = SharedStuff.Instance.SpawnPlayer();
             entity.Initialize(peer, peer.ID);
-            m_entities.Add(entity);
 
             CompressedVector3 pos = BoundedRange.Compress(entity.gameObject.transform.position, SharedStuff.Instance.Range);
 
@@ -97,23 +95,21 @@ namespace NextSimple
             Packet packet = default(Packet);
             packet.Create(data);
 
-            /*
+            Debug.LogWarning(peer.Send(0, ref packet));
+
             for (int i = 0; i < m_entities.Count; i++)
             {
-                if (m_entities[i] == entity)
-                    continue;
-                m_entities[i].Peer.Send(0, ref packet);
-            }
-
-            entity.Peer.Send(0, ref packet);
-            */
+                m_entities[i].Peer.Send(1, ref packet);
+            }            
             
+            /*
             m_server.Broadcast(0, ref packet);
-            
+                         
             buffer.Clear();
             buffer.AddInt((int) OpCodes.AssumeOwnership).AddUInt(entity.Id).ToArray(data);
             packet.Create(data);
             peer.Send(0, ref packet);
+            */
 
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
@@ -125,8 +121,10 @@ namespace NextSimple
                 buffer.AddInt((int) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
                     .AddUInt(pos.z).ToArray(data);
                 packet.Create(data);
-                peer.Send(0, ref packet);
+                peer.Send(1, ref packet);
             }
+
+            m_entities.Add(entity);
         }
 
         private void ServerDisconnectPlayer(Peer peer)
@@ -179,7 +177,7 @@ namespace NextSimple
                          }
                          else
                          {
-                             m_entities[i].Peer.Send(0, ref packet);
+                             m_entities[i].Peer.Send(1, ref packet);
                          }
                      }
                      break;

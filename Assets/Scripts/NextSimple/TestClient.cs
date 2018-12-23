@@ -28,7 +28,7 @@ namespace NextSimple
         	m_address.SetHost("127.0.0.1");
         	m_client = new Host();
         	m_client.Create();
-        	m_peer = m_client.Connect(m_address);
+        	m_peer = m_client.Connect(m_address, 100);
             ClientId = m_currentClient;
             m_currentClient += 1;
         }
@@ -80,7 +80,7 @@ namespace NextSimple
         			break;
 
         		case EventType.Receive:
-        			ProcessPacket(evt.Packet);
+        			ProcessPacket(evt.Packet, evt.ChannelID);
         			Debug.Log($"Packet received from server - Channel ID: {evt.ChannelID}, Data Length: {evt.Packet.Length}");
         			evt.Packet.Dispose();
         			break;
@@ -92,7 +92,7 @@ namespace NextSimple
         	}
         }
 
-        void ProcessPacket(Packet packet)
+        void ProcessPacket(Packet packet, byte channel)
         {
 	        byte[] data = new byte[1024];
 	        packet.CopyTo(data);
@@ -111,6 +111,10 @@ namespace NextSimple
 		        case OpCodes.Spawn:
 			        entity = SharedStuff.Instance.SpawnPlayer();
 			        entity.Initialize(id, SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range), m_peer);
+			        if (channel == 0)
+			        {
+				        entity.AssumeOwnership();
+			        }
 			        m_entities.Add(entity);
 			        break;
 		        
@@ -120,14 +124,6 @@ namespace NextSimple
 			        {
 				        m_entities.Remove(entity);
 				        Destroy(entity.gameObject);
-			        }
-			        break;
-		        
-		        case OpCodes.AssumeOwnership:
-			        entity = GetEntityForId(id);
-			        if(entity != null)
-			        {
-				        entity.AssumeOwnership();				        
 			        }
 			        break;
 		        
