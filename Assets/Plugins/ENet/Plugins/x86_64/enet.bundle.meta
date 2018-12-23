@@ -1,15 +1,27 @@
 fileFormatVersion: 2
 guid: d8b22096e0cd05d438a5ce5c8c476dde
-timeCreated: 1534525764
-licenseType: Pro
 PluginImporter:
   externalObjects: {}
   serializedVersion: 2
   iconMap: {}
   executionOrder: {}
+  defineConstraints: []
   isPreloaded: 0
   isOverridable: 0
+  isExplicitlyReferenced: 0
   platformData:
+  - first:
+      '': Any
+    second:
+      enabled: 0
+      settings:
+        Exclude Editor: 0
+        Exclude Linux: 0
+        Exclude Linux64: 0
+        Exclude LinuxUniversal: 0
+        Exclude OSXUniversal: 0
+        Exclude Win: 0
+        Exclude Win64: 0
   - first:
       '': OSXIntel
     second:
@@ -30,10 +42,11 @@ PluginImporter:
   - first:
       Editor: Editor
     second:
-      enabled: 0
+      enabled: 1
       settings:
         CPU: x86_64
         DefaultValueInitialized: true
+        OS: AnyOS
   - first:
       Facebook: Win
     second:
@@ -49,7 +62,7 @@ PluginImporter:
   - first:
       Standalone: Linux
     second:
-      enabled: 0
+      enabled: 1
       settings:
         CPU: None
   - first:
@@ -63,17 +76,17 @@ PluginImporter:
     second:
       enabled: 1
       settings:
-        CPU: x86_64
+        CPU: AnyCPU
   - first:
       Standalone: OSXUniversal
     second:
-      enabled: 0
+      enabled: 1
       settings:
-        CPU: x86_64
+        CPU: AnyCPU
   - first:
       Standalone: Win
     second:
-      enabled: 0
+      enabled: 1
       settings:
         CPU: None
   - first:
