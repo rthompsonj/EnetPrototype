@@ -104,3 +104,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c15a65bc5e7b4485b6cfd838bd6bae51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_clientRemoteMat: {fileID: 2100000, guid: 37320bdce04eb4fd6876e3c46bd14dbf, type: 2}
+  m_clientLocalMat: {fileID: 2100000, guid: ae3c0ff9b4a064c72a48af0001a64116, type: 2}
+  m_serverMat: {fileID: 2100000, guid: 9ce89cebf326c443b81b8cc52825eab4, type: 2}
+  m_renderer: {fileID: 7422475347673277764}

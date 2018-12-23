@@ -30,7 +30,10 @@ namespace Simple
 				}
 			}
 
-			m_nPlayers.text = m_clients.Count.ToString();
+			if (m_nPlayers != null)
+			{
+				m_nPlayers.text = m_clients.Count.ToString();	
+			}
 		}
 	}
 }

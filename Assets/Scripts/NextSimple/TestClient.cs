@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
@@ -18,6 +19,8 @@ namespace NextSimple
         public PeerState State;
 
         public uint ClientId;
+        
+        private List<BaseEntity> m_entities = new List<BaseEntity>();
 
         void Start()
         {
@@ -38,6 +41,14 @@ namespace NextSimple
         			m_peer.Disconnect((uint) EventCodes.Exit);
         			break;
         	}
+
+            foreach (var e in m_entities)
+            {
+	            if (e != null)
+	            {
+		            Destroy(e);
+	            }
+            }
 
         	m_client.Flush();
         	m_client.Dispose();
@@ -92,28 +103,55 @@ namespace NextSimple
 	        OpCodes op = (OpCodes) buffer.ReadInt();
 	        uint id = buffer.ReadUInt();
 
+	        BaseEntity entity = null;
+	        CompressedVector3 compressedPos;
+
 	        switch (op)
 	        {
 		        case OpCodes.Spawn:
-			        var entity = SharedStuff.Instance.SpawnPlayer();
-			        var x = buffer.ReadUInt();
-			        var y = buffer.ReadUInt();
-			        var z = buffer.ReadUInt();
-			        var compressedPos = new CompressedVector3(x, y, z);
-			        entity.Initialize(id, BoundedRange.Decompress(compressedPos, SharedStuff.Instance.Range), ClientId);
+			        entity = SharedStuff.Instance.SpawnPlayer();
+			        entity.Initialize(id, SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range), m_peer);
+			        m_entities.Add(entity);
 			        break;
 		        
 		        case OpCodes.Destroy:
-			        var entities = GameObject.FindObjectsOfType<BaseEntity>();
-			        foreach (var e in entities)
+			        entity = GetEntityForId(id);			        			        
+			        if (entity != null && entity.Id == id)
 			        {
-				        if (e.Id == id)
-				        {
-					        Destroy(e.gameObject);
-				        }
+				        m_entities.Remove(entity);
+				        Destroy(entity.gameObject);
+			        }
+			        break;
+		        
+		        case OpCodes.AssumeOwnership:
+			        entity = GetEntityForId(id);
+			        if(entity != null)
+			        {
+				        entity.AssumeOwnership();				        
+			        }
+			        break;
+		        
+		        case OpCodes.PositionUpdate:
+			        entity = GetEntityForId(id);
+			        if (entity != null)
+			        {
+				        entity.m_newPos = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
 			        }
 			        break;
 	        }
+        }
+
+        private BaseEntity GetEntityForId(uint id)
+        {
+	        for (int i = 0; i < m_entities.Count; i++)
+	        {
+		        if (m_entities[i].Id == id)
+		        {
+			        return m_entities[i];
+		        }
+	        }
+
+	        return null;
         }
     }
 }

@@ -3,6 +3,7 @@ using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.UI;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
@@ -11,8 +12,10 @@ namespace NextSimple
 {
     public enum OpCodes
     {
+        AssumeOwnership,
         Spawn,
-        Destroy
+        Destroy,
+        PositionUpdate
     }
     
     public class TestServer : MonoBehaviour
@@ -65,6 +68,7 @@ namespace NextSimple
                     break;
 
                 case EventType.Receive:
+                    ProcessPacket(evt);
                     Debug.Log($"Packet received from - ID: {evt.Peer.ID}, IP: {evt.Peer.IP}, Channel ID: {evt.ChannelID}, Data Length: {evt.Packet.Length}");
                     evt.Packet.Dispose();
                     break;
@@ -92,12 +96,36 @@ namespace NextSimple
 
             Packet packet = default(Packet);
             packet.Create(data);
-            
+
+            /*
             for (int i = 0; i < m_entities.Count; i++)
             {
                 if (m_entities[i] == entity)
                     continue;
                 m_entities[i].Peer.Send(0, ref packet);
+            }
+
+            entity.Peer.Send(0, ref packet);
+            */
+            
+            m_server.Broadcast(0, ref packet);
+            
+            buffer.Clear();
+            buffer.AddInt((int) OpCodes.AssumeOwnership).AddUInt(entity.Id).ToArray(data);
+            packet.Create(data);
+            peer.Send(0, ref packet);
+
+            // must send all of the old data
+            for (int i = 0; i < m_entities.Count; i++)
+            {
+                if (m_entities[i].Id == peer.ID)
+                    continue;
+                pos = BoundedRange.Compress(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
+                buffer.Clear();
+                buffer.AddInt((int) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
+                    .AddUInt(pos.z).ToArray(data);
+                packet.Create(data);
+                peer.Send(0, ref packet);
             }
         }
 
@@ -119,6 +147,43 @@ namespace NextSimple
                     return;
                 }
             }
+        }
+
+        private void ProcessPacket(Event evt)
+        {
+             byte[] data = new byte[1024];
+             evt.Packet.CopyTo(data);
+             
+             BitBuffer buffer = new BitBuffer(128);
+             buffer.FromArray(data, evt.Packet.Length);
+    
+             OpCodes op = (OpCodes) buffer.ReadInt();
+             uint id = buffer.ReadUInt();
+
+             if (evt.Peer.ID != id)
+             {
+                 Debug.LogError($"ID Mismatch! {evt.Peer.ID} vs. {id}");
+                 return;
+             }
+
+             Packet packet = evt.Packet;
+
+             switch (op)
+             {
+                 case OpCodes.PositionUpdate:
+                     for (int i = 0; i < m_entities.Count; i++)
+                     {
+                         if (m_entities[i].Id == id)
+                         {
+                             m_entities[i].gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                         }
+                         else
+                         {
+                             m_entities[i].Peer.Send(0, ref packet);
+                         }
+                     }
+                     break;
+             }
         }
     }
 }
