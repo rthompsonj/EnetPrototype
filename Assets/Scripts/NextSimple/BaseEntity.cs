@@ -2,6 +2,7 @@ using System.Runtime.Serialization;
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
+using Threaded;
 using UnityEngine;
 
 namespace NextSimple
@@ -11,10 +12,14 @@ namespace NextSimple
         private bool m_isServer = false;
         private bool m_isLocal = false;
 
+        private ClientNetworkSystem m_client = null;
+
         [SerializeField] private Material m_clientRemoteMat = null;
         [SerializeField] private Material m_clientLocalMat = null;
         [SerializeField] private Material m_serverMat = null;
         [SerializeField] private Renderer m_renderer;
+
+        public bool HasPeer = false;
         
         public uint Id { get; private set; }
         public Peer Peer { get; private set; }
@@ -56,8 +61,15 @@ namespace NextSimple
 
         private float m_nextUpdate = 2f;
 
+        void Start()
+        {
+            m_client = FindObjectOfType<ClientNetworkSystem>();
+        }
+
         void Update()
         {
+            HasPeer = Peer.IsSet;
+            
             if (m_newPos.HasValue)
             {
                 gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
@@ -85,7 +97,17 @@ namespace NextSimple
                     .ToArray(data);
                 Packet packet = default(Packet);
                 packet.Create(data);
-                Peer.Send(0, ref packet);                
+                //Peer.Send(0, ref packet);                
+                
+                var command = new BaseNetworkSystem.GameCommand
+                {
+                    Type = BaseNetworkSystem.GameCommand.CommandType.Send,
+                    Packet = packet,
+                    Channel = 0
+                };
+
+                m_client.AddCommandToQueue(command);
+                
                 m_nextUpdate = Time.time + 0.1f;
             }
         }
