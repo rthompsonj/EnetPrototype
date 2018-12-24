@@ -248,6 +248,7 @@ namespace Threaded
 
             Debug.LogWarning(peer.Send(0, ref packet));
 
+            //TODO: This doesn't have enough data when it makes it into the FunctionQueue --> who to send to?!
             var command = new GameCommand
             {
                 Type = GameCommand.CommandType.Send,
