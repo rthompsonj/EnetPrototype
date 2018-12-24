@@ -110,6 +110,7 @@ namespace Threaded
                                 case GameCommand.CommandType.Send:
                                     if (command.Peer.IsSet)
                                     {
+                                        Debug.Log($"SENDING PACKET TO {command.Peer.ID} with packet length {command.Packet.Length} and IsSet: {command.Packet.IsSet}");
                                         command.Peer.Send(command.Channel, ref command.Packet);   
                                     }
                                     break;
@@ -117,6 +118,11 @@ namespace Threaded
                                 case GameCommand.CommandType.Broadcast:
                                     server.Broadcast(command.Channel, ref command.Packet);
                                     break;
+                            }
+
+                            if (command.Packet.IsSet)
+                            {
+                                command.Packet.Dispose();
                             }
                         }
 
@@ -190,8 +196,6 @@ namespace Threaded
                 return;
             }
 
-            Packet packet = netEvent.Packet;
-
             switch (op)
             {
                 case OpCodes.PositionUpdate:
@@ -208,11 +212,15 @@ namespace Threaded
                                 Type = GameCommand.CommandType.Send,
                                 Peer = m_entities[i].Peer,
                                 Channel = 1,
-                                Packet = packet
+                                Packet = netEvent.Packet
                             };
                             m_commandQueue.Enqueue(command);
                         }
                     }
+                    break;
+                
+                default:
+                    netEvent.Packet.Dispose();
                     break;
             }
         }

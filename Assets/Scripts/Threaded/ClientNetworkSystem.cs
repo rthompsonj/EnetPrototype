@@ -133,6 +133,11 @@ namespace Threaded
                                 default:
                                     throw new ArgumentException($"Invalid CommandType: {command.Type}");
                             }
+
+                            if (command.Packet.IsSet)
+                            {
+                                command.Packet.Dispose();
+                            }
                         }
 
                         if (client.IsSet)

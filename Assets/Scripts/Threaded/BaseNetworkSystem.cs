@@ -94,7 +94,6 @@ namespace Threaded
                     
                     case EventType.Receive:
                         ProcessPacket(netEvent);
-                        netEvent.Packet.Dispose();
                         break;                    
                 }
             }
