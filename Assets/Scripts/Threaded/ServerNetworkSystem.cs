@@ -1,13 +1,10 @@
 using System;
-using System.Threading;
-using DisruptorUnity3d;
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
 using Event = ENet.Event;
-using EventType = ENet.EventType;
 
 namespace Threaded
 {
@@ -106,16 +103,23 @@ namespace Threaded
         {
             Debug.Log($"Client disconnected - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}  Reason: {netEvent.Data}");
             Peer peer = netEvent.Peer;
-            
-            for (int i = 0; i < m_entities.Count; i++)
+            BaseEntity entity = null;
+
+            if (m_entityDict.TryGetValue(peer.ID, out entity))
             {
-                if (m_entities[i].Id == peer.ID)
+                uint id = peer.ID;
+
+                m_entityDict.Remove(peer.ID);
+                m_entities.Remove(entity);
+                    
+                Destroy(entity.gameObject);
+
+                // notify everyone else
+                if (m_entities.Count > 0)
                 {
                     byte[] data = new byte[8];
                     BitBuffer buffer = new BitBuffer(128);
-                    buffer.AddUShort((ushort) OpCodes.Destroy)
-                        .AddUInt(peer.ID)
-                        .ToArray(data);
+                    buffer.AddUShort((ushort) OpCodes.Destroy).AddUInt(id).ToArray(data);
                     Packet packet = default(Packet);
                     packet.Create(data);
                     var command = new GameCommand
@@ -124,17 +128,14 @@ namespace Threaded
                         Channel = 0,
                         Packet = packet
                     };
-                    m_commandQueue.Enqueue(command);
-                    m_entityDict.Remove(peer.ID);
-                    m_entities.RemoveAt(i);
-                    return;
+                    m_commandQueue.Enqueue(command);                    
                 }
             }
         }
 
         protected override void ProcessPacket(Event netEvent)
         {
-            Debug.Log($"Packet received from - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}, Channel ID: {netEvent.ChannelID}, Data Length: {netEvent.Packet.Length}");
+            //Debug.Log($"Packet received from - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}, Channel ID: {netEvent.ChannelID}, Data Length: {netEvent.Packet.Length}");
             
             byte[] data = new byte[1024];
             netEvent.Packet.CopyTo(data);

@@ -65,12 +65,10 @@ namespace Threaded
         protected override void Func_StopHost(Host host, GameCommand command)
         {
             Debug.Log("STOPPING CLIENT FROM NETWORK THREAD");
-            //switch (peer.State)
-            //{
-            //    case PeerState.Connected:
-            //        peer.Disconnect((uint)EventCodes.Exit);
-            //        break;
-            //}
+            if (Peer.IsSet && Peer.State == PeerState.Connected)
+            {
+                Peer.Disconnect((uint)OpCodes.Destroy);
+            }
             host.Flush();
             host.Dispose();
         }
@@ -100,7 +98,7 @@ namespace Threaded
 
         protected override void Disconnect(Event netEvent)
         {
-            //throw new NotImplementedException();
+            Debug.Log("Disconnect detected!");
         }
 
         protected override void ProcessPacket(Event netEvent)
