@@ -19,7 +19,7 @@ namespace Threaded
 
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.Start,
+                Type = GameCommand.CommandType.StartHost,
                 Port = 9900,
                 ChannelCount = 100,
                 PeerLimit = 100,
@@ -34,111 +34,66 @@ namespace Threaded
             base.OnDestroy();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.Stop
+                Type = GameCommand.CommandType.StopHost
             };
             m_commandQueue.Enqueue(command);
         }
-
-        protected override Thread LogicThread()
+        
+        protected override void Func_StartHost(Host host, GameCommand command)
         {
-            return new Thread(() =>
+            Debug.Log("STARTING SERVER FROM NETWORK THREAD");
+            try
             {
-                while (true)
+                Address addy = new Address
                 {
-                    // --> to network thread
-                    while (m_commandQueue.TryDequeue(out GameCommand command))
-                    {
-                        m_functionQueue.Enqueue(command);
-                    }
-
-                    // --> to game thread
-                    while (m_transportEventQueue.TryDequeue(out Event netEvent))
-                    {
-                        switch (netEvent.Type)
-                        {
-                            case EventType.None:
-                                break;
-                            
-                            default:
-                                m_logicEventQueue.Enqueue(netEvent);
-                                break;
-                        }
-                    }
-                }
-            });
+                    Port = command.Port
+                };
+        
+                host.Create(addy, command.PeerLimit, command.ChannelCount);
+                Debug.Log($"Server started on port: {command.Port} for {command.PeerLimit} users with {command.ChannelCount} channels.");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex);
+            }   
         }
 
-        protected override Thread NetworkThread()
+        protected override void Func_StopHost(Host host, GameCommand command)
         {
-            return new Thread(() =>
+            Debug.Log("STOPPING SERVER FROM NETWORK THREAD");
+            for (int i = 0; i < m_entities.Count; i++)
             {
-                int updateTime = 0;
-                
-                using (Host server = new Host())
+                if (m_entities[i].Peer.IsSet)
                 {
-                    while (true)
-                    {
-                        while (m_functionQueue.TryDequeue(out GameCommand command))
-                        {
-                            switch (command.Type)
-                            {
-                                case GameCommand.CommandType.Start:
-                                    Debug.Log("STARTING SERVER FROM NETWORK THREAD");
-                                    try
-                                    {
-                                        Address addy = new Address
-                                        {
-                                            Port = command.Port
-                                        };
-                                        updateTime = command.UpdateTime;
-                                
-                                        server.Create(addy, command.PeerLimit, command.ChannelCount);
-                                        Debug.Log($"Server started on port: {command.Port} for {command.PeerLimit} users with {command.ChannelCount} channels.");
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Debug.LogError(ex);
-                                    }                                    
-                                    break;
-                                
-                                case GameCommand.CommandType.Stop:
-                                    Debug.Log("STOPPING SERVER FROM NETWORK THREAD");
-                                    server.Flush();
-                                    server.Dispose();
-                                    break;
-                                
-                                case GameCommand.CommandType.Send:
-                                    if (command.Peer.IsSet)
-                                    {
-                                        Debug.Log($"SENDING PACKET TO {command.Peer.ID} with packet length {command.Packet.Length} and IsSet: {command.Packet.IsSet}");
-                                        command.Peer.Send(command.Channel, ref command.Packet);   
-                                    }
-                                    break;
-                                
-                                case GameCommand.CommandType.Broadcast:
-                                    server.Broadcast(command.Channel, ref command.Packet);
-                                    break;
-                            }
-
-                            if (command.Packet.IsSet)
-                            {
-                                command.Packet.Dispose();
-                            }
-                        }
-
-                        if (server.IsSet)
-                        {
-                            ENet.Event netEvent;
-                            server.Service(updateTime, out netEvent);
-                            if (netEvent.Type != EventType.None)
-                            {
-                                // --> to logic thread
-                                m_transportEventQueue.Enqueue(netEvent);
-                            }
-                        }
-                    }
+                    m_entities[i].Peer.Disconnect(0);
                 }
-            });
+            }
+            host.Flush();
+            host.Dispose();
+        }
+        
+        protected override void Func_Send(Host host, GameCommand command)
+        {
+            if (command.Target.IsSet)
+            {
+                command.Target.Send(command.Channel, ref command.Packet);   
+            }
+        }
+        
+        protected override void Func_BroadcastAll(Host host, GameCommand command)
+        {
+            host.Broadcast(command.Channel, ref command.Packet);
+        }
+        
+        protected override void Func_BroadcastOthers(Host host, GameCommand command)
+        {
+            for (int i = 0; i < m_entities.Count; i++)
+            {
+                if (m_entities[i].Peer.ID != command.Source.ID && m_entities[i].Peer.IsSet)
+                {                    
+                    m_entities[i].Peer.Send(command.Channel, ref command.Packet);
+                }
+            }
         }
 
         protected override void Connect(Event netEvent)
@@ -165,7 +120,7 @@ namespace Threaded
                     packet.Create(data);
                     var command = new GameCommand
                     {
-                        Type = GameCommand.CommandType.Broadcast,
+                        Type = GameCommand.CommandType.BroadcastAll,
                         Channel = 0,
                         Packet = packet
                     };
@@ -199,23 +154,21 @@ namespace Threaded
             switch (op)
             {
                 case OpCodes.PositionUpdate:
-                    for (int i = 0; i < m_entities.Count; i++)
+                    
+                    var command = new GameCommand
                     {
-                        if (m_entities[i].Id == id)
-                        {
-                            m_entities[i].gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
-                        }
-                        else
-                        {
-                            var command = new GameCommand
-                            {
-                                Type = GameCommand.CommandType.Send,
-                                Peer = m_entities[i].Peer,
-                                Channel = 1,
-                                Packet = netEvent.Packet
-                            };
-                            m_commandQueue.Enqueue(command);
-                        }
+                        Type = GameCommand.CommandType.BroadcastOthers,
+                        Source = netEvent.Peer,
+                        Channel = 1,
+                        Packet = netEvent.Packet
+                    };
+
+                    m_commandQueue.Enqueue(command);
+
+                    BaseEntity entity = null;
+                    if (m_entityDict.TryGetValue(netEvent.Peer.ID, out entity))
+                    {
+                        entity.gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
                     }
                     break;
                 
@@ -246,30 +199,25 @@ namespace Threaded
             Packet packet = default(Packet);
             packet.Create(data);
 
-            Debug.LogWarning(peer.Send(0, ref packet));
-
-            //TODO: This doesn't have enough data when it makes it into the FunctionQueue --> who to send to?!
             var command = new GameCommand
             {
                 Type = GameCommand.CommandType.Send,
+                Target = peer,
+                Channel = 0,
+                Packet = packet
+            };
+
+            m_commandQueue.Enqueue(command);
+
+            command = new GameCommand
+            {
+                Type = GameCommand.CommandType.BroadcastOthers,
+                Source = peer,
                 Channel = 1,
                 Packet = packet
             };
 
-            for (int i = 0; i < m_entities.Count; i++)
-            {
-                //m_entities[i].Peer.Send(1, ref packet);
-                m_commandQueue.Enqueue(command);
-            }            
-            
-            /*
-            m_server.Broadcast(0, ref packet);
-                         
-            buffer.Clear();
-            buffer.AddInt((int) OpCodes.AssumeOwnership).AddUInt(entity.Id).ToArray(data);
-            packet.Create(data);
-            peer.Send(0, ref packet);
-            */
+            m_commandQueue.Enqueue(command);
             
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
@@ -280,15 +228,16 @@ namespace Threaded
                 buffer.Clear();
                 buffer.AddInt((int) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
                     .AddUInt(pos.z).ToArray(data);
-                packet.Create(data);                
-                //peer.Send(1, ref packet);
-                var old_command = new GameCommand
+                packet.Create(data);
+                
+                command = new GameCommand
                 {
                     Type = GameCommand.CommandType.Send,
+                    Target = peer,
                     Channel = 1,
                     Packet = packet
                 };
-                m_commandQueue.Enqueue(old_command);
+                m_commandQueue.Enqueue(command);
             }
 
             m_entityDict.Add(peer.ID, entity);

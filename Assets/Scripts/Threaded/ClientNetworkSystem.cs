@@ -19,7 +19,7 @@ namespace Threaded
             base.Start();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.Start,
+                Type = GameCommand.CommandType.StartHost,
                 Host = "127.0.0.1",
                 Port = 9900,
                 UpdateTime = 0,
@@ -33,7 +33,7 @@ namespace Threaded
             base.OnDestroy();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.Stop
+                Type = GameCommand.CommandType.StopHost
             };
             m_commandQueue.Enqueue(command);
         }
@@ -42,117 +42,57 @@ namespace Threaded
         {
             m_commandQueue.Enqueue(command);   
         }
-        
-        protected override Thread LogicThread()
-        {
-            return new Thread(() =>
-            {
-                while (true)
-                {
-                    // --> to network thread
-                    while (m_commandQueue.TryDequeue(out GameCommand command))
-                    {
-                        m_functionQueue.Enqueue(command);
-                    }
 
-                    // --> to game thread
-                    while (m_transportEventQueue.TryDequeue(out Event netEvent))
-                    {
-                        switch (netEvent.Type)
-                        {
-                            case EventType.None:
-                                break;
-                            
-                            default:
-                                m_logicEventQueue.Enqueue(netEvent);
-                                break;
-                        }
-                    }
-                }
-            });
+        protected override void Func_StartHost(Host host, GameCommand command)
+        {
+            Debug.Log("STARTING CLIENT FROM NETWORK THREAD");
+            try
+            {
+                Address addy = new Address
+                {
+                    Port = command.Port
+                };
+                addy.SetHost(command.Host);
+        
+                host.Create();
+                Peer = host.Connect(addy, command.ChannelCount);
+                Debug.Log($"Client started on port: {command.Port} with {command.ChannelCount} channels.");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex);
+            }   
         }
 
-        protected override Thread NetworkThread()
+        protected override void Func_StopHost(Host host, GameCommand command)
         {
-            return new Thread(() =>
+            Debug.Log("STOPPING CLIENT FROM NETWORK THREAD");
+            //switch (peer.State)
+            //{
+            //    case PeerState.Connected:
+            //        peer.Disconnect((uint)EventCodes.Exit);
+            //        break;
+            //}
+            host.Flush();
+            host.Dispose();
+        }
+        
+        protected override void Func_Send(Host host, GameCommand command)
+        {
+            if (Peer.IsSet)
             {
-                int updateTime = 0;
-                
-                using (Host client = new Host())
-                {
-                    while (true)
-                    {
-                        while (m_functionQueue.TryDequeue(out GameCommand command))
-                        {
-                            switch (command.Type)
-                            {
-                                case GameCommand.CommandType.Start:
-                                    Debug.Log("STARTING CLIENT FROM NETWORK THREAD");
-                                    try
-                                    {
-                                        Address addy = new Address
-                                        {
-                                            Port = command.Port
-                                        };
-                                        addy.SetHost(command.Host);
-                                        updateTime = command.UpdateTime;
-                                
-                                        client.Create();
-                                        Peer = client.Connect(addy, command.ChannelCount);
-                                        Debug.Log($"Client started on port: {command.Port} with {command.ChannelCount} channels.");
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Debug.LogError(ex);
-                                    }
-                                    break;
-                                
-                                case GameCommand.CommandType.Stop:
-                                    Debug.Log("STOPPING CLIENT FROM NETWORK THREAD");
+                Peer.Send(command.Channel, ref command.Packet);
+            }
+        }
+        
+        protected override void Func_BroadcastAll(Host host, GameCommand command)
+        {
 
-                                    /*
-                                    switch (peer.State)
-                                    {
-                                        case PeerState.Connected:
-                                            peer.Disconnect((uint)EventCodes.Exit);
-                                            break;
-                                    }
-                                    */
-                            
-                                    client.Flush();
-                                    client.Dispose();
-                                    break;
-                                
-                                case GameCommand.CommandType.Send:
-                                    if (client.IsSet && Peer.IsSet)
-                                    {
-                                        Peer.Send(command.Channel, ref command.Packet);   
-                                    }
-                                    break;
-                                
-                                default:
-                                    throw new ArgumentException($"Invalid CommandType: {command.Type}");
-                            }
+        }
+        
+        protected override void Func_BroadcastOthers(Host host, GameCommand command)
+        {
 
-                            if (command.Packet.IsSet)
-                            {
-                                command.Packet.Dispose();
-                            }
-                        }
-
-                        if (client.IsSet)
-                        {
-                            ENet.Event netEvent;
-                            client.Service(updateTime, out netEvent);
-                            if (netEvent.Type != EventType.None)
-                            {
-                                // --> to logic thread
-                                m_transportEventQueue.Enqueue(netEvent);
-                            }
-                        }
-                    }
-                }
-            });
         }
 
         protected override void Connect(Event netEvent)
@@ -208,6 +148,10 @@ namespace Threaded
                     if (m_entityDict.TryGetValue(id, out entity))
                     {
                         entity.m_newPos = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"Unable to locate entity ID: {id}");
                     }
                     break;
             }
