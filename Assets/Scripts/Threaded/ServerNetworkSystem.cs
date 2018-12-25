@@ -113,7 +113,7 @@ namespace Threaded
                 {
                     byte[] data = new byte[8];
                     BitBuffer buffer = new BitBuffer(128);
-                    buffer.AddInt((int) OpCodes.Destroy)
+                    buffer.AddUShort((ushort) OpCodes.Destroy)
                         .AddUInt(peer.ID)
                         .ToArray(data);
                     Packet packet = default(Packet);
@@ -141,8 +141,8 @@ namespace Threaded
              
             BitBuffer buffer = new BitBuffer(128);
             buffer.FromArray(data, netEvent.Packet.Length);
-    
-            OpCodes op = (OpCodes) buffer.ReadInt();
+
+            OpCodes op = (OpCodes) buffer.ReadUShort();
             uint id = buffer.ReadUInt();
 
             if (netEvent.Peer.ID != id)
@@ -168,7 +168,11 @@ namespace Threaded
                     BaseEntity entity = null;
                     if (m_entityDict.TryGetValue(netEvent.Peer.ID, out entity))
                     {
-                        entity.gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                        var posUpdate = PackerUnpacker.DeserializePositionUpdate(buffer, SharedStuff.Instance.Range);
+                        entity.gameObject.transform.position = posUpdate.Position;
+                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, posUpdate.Heading, 0f));
+                        
+                        //entity.gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
                     }
                     break;
                 
@@ -189,7 +193,7 @@ namespace Threaded
 
             byte[] data = new byte[16];
             BitBuffer buffer = new BitBuffer(128);
-            buffer.AddInt((int)OpCodes.Spawn)
+            buffer.AddUShort((ushort)OpCodes.Spawn)
                 .AddUInt(entity.Id)
                 .AddUInt(pos.x)
                 .AddUInt(pos.y)
@@ -222,11 +226,15 @@ namespace Threaded
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
             {
-                if (m_entities[i].Id == peer.ID)
+                if (m_entities[i].Peer.ID == peer.ID)
                     continue;
+                command = PackerUnpacker.GetPositionUpdate(OpCodes.Spawn, m_entities[i].Peer.ID, m_entities[i].gameObject, SharedStuff.Instance.Range, 1);
+                command.Target = peer;
+                
+                /*
                 pos = BoundedRange.Compress(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
                 buffer.Clear();
-                buffer.AddInt((int) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
+                buffer.AddUShort((ushort) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
                     .AddUInt(pos.z).ToArray(data);
                 packet.Create(data);
                 
@@ -237,6 +245,8 @@ namespace Threaded
                     Channel = 1,
                     Packet = packet
                 };
+                */
+                
                 m_commandQueue.Enqueue(command);
             }
 

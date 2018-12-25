@@ -1,12 +1,10 @@
 using System;
-using System.Threading;
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
 using Event = ENet.Event;
-using EventType = ENet.EventType;
 
 namespace Threaded
 {
@@ -116,7 +114,7 @@ namespace Threaded
             BitBuffer buffer = new BitBuffer(128);
             buffer.FromArray(data, packet.Length);
 
-            OpCodes op = (OpCodes) buffer.ReadInt();
+            OpCodes op = (OpCodes) buffer.ReadUShort();
             uint id = buffer.ReadUInt();
 
             BaseEntity entity = null;
@@ -147,7 +145,13 @@ namespace Threaded
                 case OpCodes.PositionUpdate:
                     if (m_entityDict.TryGetValue(id, out entity))
                     {
-                        entity.m_newPos = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                        var posUpdate = PackerUnpacker.DeserializePositionUpdate(buffer, SharedStuff.Instance.Range);
+                        
+                        entity.m_newPos = posUpdate.Position;
+
+                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, posUpdate.Heading, 0f));
+                        
+                        //entity.m_newPos = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
                     }
                     else
                     {

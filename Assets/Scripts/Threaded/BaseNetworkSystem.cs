@@ -3,13 +3,28 @@ using System.Collections.Generic;
 using System.Threading;
 using DisruptorUnity3d;
 using ENet;
+using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
 
 namespace Threaded
-{
+{    
+    public static class BitBufferExtensions
+    {
+        public static BitBuffer AddUShort(this BitBuffer buffer, ushort value)
+        {
+            buffer.Add(2, value);
+            return buffer;
+        }
+
+        public static ushort ReadUShort(this BitBuffer buffer)
+        {
+            return (ushort)buffer.Read(2);
+        }
+    }
+    
     public abstract class BaseNetworkSystem : MonoBehaviour
     {
         public class GameCommand

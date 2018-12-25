@@ -3,6 +3,7 @@ using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
 using Threaded;
+using TMPro;
 using UnityEngine;
 
 namespace NextSimple
@@ -14,6 +15,7 @@ namespace NextSimple
 
         private ClientNetworkSystem m_client = null;
 
+        [SerializeField] private TextMeshPro m_text = null;
         [SerializeField] private Material m_clientRemoteMat = null;
         [SerializeField] private Material m_clientLocalMat = null;
         [SerializeField] private Material m_serverMat = null;
@@ -48,6 +50,7 @@ namespace NextSimple
             gameObject.transform.position = pos;
             gameObject.name = $"{Id} (CLIENT)";
             m_renderer.material = m_clientRemoteMat;
+            m_text.SetText("Remote");
         }
 
         public void AssumeOwnership()
@@ -55,6 +58,7 @@ namespace NextSimple
             m_isLocal = true;
             gameObject.name = $"{gameObject.name} OWNER";
             m_renderer.material = m_clientLocalMat;
+            m_text.SetText("Local");
         }
 
         public Vector3? m_newPos = null;
@@ -87,13 +91,16 @@ namespace NextSimple
                 m_newPos = GetRandomPos();
             }
 
-            if (Time.time > m_nextUpdate)
+            if (Peer.IsSet && Time.time > m_nextUpdate)
             {
+                
+                /*
+                var h = HalfPrecision.Compress(gameObject.transform.eulerAngles.y);
                 var pos = BoundedRange.Compress(gameObject.transform.position, SharedStuff.Instance.Range);
                 byte[] data = new byte[16];
                 BitBuffer buffer = new BitBuffer(128);
                 buffer.AddInt((int) OpCodes.PositionUpdate).
-                    AddUInt(Id).AddUInt(pos.x).AddUInt(pos.y).AddUInt(pos.z)
+                    AddUInt(Id).AddUInt(pos.x).AddUInt(pos.y).AddUInt(pos.z).AddUShort(h)
                     .ToArray(data);
                 Packet packet = default(Packet);
                 packet.Create(data);
@@ -105,7 +112,9 @@ namespace NextSimple
                     Packet = packet,
                     Channel = 0
                 };
+                */
 
+                var command = PackerUnpacker.GetPositionUpdate(Threaded.OpCodes.PositionUpdate, Peer.ID, gameObject, SharedStuff.Instance.Range, 0);
                 m_client.AddCommandToQueue(command);
                 
                 m_nextUpdate = Time.time + 0.1f;
