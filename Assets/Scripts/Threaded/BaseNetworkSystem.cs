@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using DisruptorUnity3d;
 using ENet;
 using NextSimple;
+using TMPro;
 using UnityEngine;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
@@ -37,6 +39,9 @@ namespace Threaded
             public Packet Packet;            
         }
 
+        [SerializeField] private TextMeshProUGUI m_stats = null;
+        private Host m_host;
+        
         protected abstract void Func_StartHost(Host host, GameCommand command);
         protected abstract void Func_StopHost(Host host, GameCommand command);
         protected abstract void Func_Send(Host host, GameCommand command);
@@ -117,6 +122,7 @@ namespace Threaded
 
                 using (Host host = new Host())
                 {
+                    m_host = host;
                     while (true)
                     {
                         while (m_functionQueue.TryDequeue(out GameCommand command))
@@ -192,11 +198,48 @@ namespace Threaded
                         break;                    
                 }
             }
+            
+            UpdateStats();
         }
         
         public void AddCommandToQueue(GameCommand command)
         {
             m_commandQueue.Enqueue(command);   
+        }
+
+        private StringBuilder m_sb = new StringBuilder();
+        
+        private void UpdateStats()
+        {
+            if (m_stats == null || m_host == null || m_host.IsSet == false)
+                return;
+
+            m_sb.Clear();
+            m_sb.AppendLine($"{GetValueUnit(m_host.BytesSent)}\tSent");
+            m_sb.AppendLine($"{GetValueUnit(m_host.BytesReceived)}\tReceived");
+            m_sb.AppendLine("");
+            m_sb.AppendLine($"{m_host.PacketsSent}\tPackets Sent");
+            m_sb.AppendLine($"{m_host.PacketsReceived}\tPackets Received");
+            m_sb.AppendLine("");
+            m_sb.AppendLine($"{m_host.PeersCount}\tPeer Count");
+            m_stats.SetText(m_sb.ToString());
+        }
+
+        private string GetValueUnit(uint b)
+        {
+            // mb
+            if (b > 1e6)
+            {
+                return $"{b / 1e6f} mb";
+            }
+            
+            // kb
+            if (b > 1000)
+            {
+                return $"{b / 1000f} kb";
+            }
+
+            return $"{b} bytes";
         }
     }
 }
