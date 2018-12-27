@@ -104,9 +104,9 @@ namespace NextSimple
                 buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
                 buffer.AddSyncVar(m_randomValue);
                 Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
-                var command = new BaseNetworkSystem.GameCommand
+                var command = new GameCommand
                 {
-                    Type = BaseNetworkSystem.GameCommand.CommandType.BroadcastAll,
+                    Type = CommandType.BroadcastAll,
                     Packet = packet,
                     Channel = 0
                 };
@@ -133,9 +133,9 @@ namespace NextSimple
                 m_buffer.AddFloat(m_renderer.gameObject.transform.eulerAngles.y);
                 
                 
-                var command = new BaseNetworkSystem.GameCommand
+                var command = new GameCommand
                 {
-                    Type = BaseNetworkSystem.GameCommand.CommandType.Send,
+                    Type = CommandType.Send,
                     Packet = m_buffer.GetPacketFromBuffer(),
                     Channel = 0
                 };

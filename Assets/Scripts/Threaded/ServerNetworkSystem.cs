@@ -19,7 +19,7 @@ namespace Threaded
 
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.StartHost,
+                Type = CommandType.StartHost,
                 Port = 9900,
                 ChannelCount = 100,
                 PeerLimit = 100,
@@ -34,7 +34,7 @@ namespace Threaded
             base.OnDestroy();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.StopHost
+                Type = CommandType.StopHost
             };
             m_commandQueue.Enqueue(command);
         }
@@ -128,7 +128,7 @@ namespace Threaded
                     var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
                     var command = new GameCommand
                     {
-                        Type = GameCommand.CommandType.BroadcastAll,
+                        Type = CommandType.BroadcastAll,
                         Channel = 0,
                         Packet = packet
                     };
@@ -159,7 +159,7 @@ namespace Threaded
                     
                     var command = new GameCommand
                     {
-                        Type = GameCommand.CommandType.BroadcastOthers,
+                        Type = CommandType.BroadcastOthers,
                         Source = netEvent.Peer,
                         Channel = 1,
                         Packet = netEvent.Packet
@@ -198,7 +198,7 @@ namespace Threaded
 
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.Send,
+                Type = CommandType.Send,
                 Target = peer,
                 Channel = 0,
                 Packet = packet
@@ -208,7 +208,7 @@ namespace Threaded
 
             command = new GameCommand
             {
-                Type = GameCommand.CommandType.BroadcastOthers,
+                Type = CommandType.BroadcastOthers,
                 Source = peer,
                 Channel = 1,
                 Packet = packet
@@ -229,7 +229,7 @@ namespace Threaded
 
                 command = new GameCommand
                 {
-                    Type = GameCommand.CommandType.Send,
+                    Type = CommandType.Send,
                     Packet = othersPacket,
                     Channel = 1,
                     Target = peer

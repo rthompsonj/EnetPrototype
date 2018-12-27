@@ -13,32 +13,6 @@ namespace Threaded
 {
     public abstract class BaseNetworkSystem : MonoBehaviour
     {
-        public class GameCommand
-        {
-            public enum CommandType
-            {
-                StartHost,
-                StopHost,
-                Send,
-                BroadcastAll,
-                BroadcastOthers
-            }
-
-            public CommandType Type;
-
-            public string Host;
-            public ushort Port;
-            public int ChannelCount;
-            public int PeerLimit;
-            public int UpdateTime;
-
-            public Peer Source;
-            public Peer Target;
-
-            public byte Channel;
-            public Packet Packet;            
-        }
-
         [SerializeField] private TextMeshProUGUI m_stats = null;
         private Host m_host;
         
@@ -162,24 +136,24 @@ namespace Threaded
                         {
                             switch (command.Type)
                             {
-                                case GameCommand.CommandType.StartHost:
+                                case CommandType.StartHost:
                                     updateTime = command.UpdateTime;
                                     Func_StartHost(host, command);
                                     break;
 
-                                case GameCommand.CommandType.StopHost:
+                                case CommandType.StopHost:
                                     Func_StopHost(host, command);
                                     break;
 
-                                case GameCommand.CommandType.Send:
+                                case CommandType.Send:
                                     Func_Send(host, command);
                                     break;
 
-                                case GameCommand.CommandType.BroadcastAll:
+                                case CommandType.BroadcastAll:
                                     Func_BroadcastAll(host, command);
                                     break;
 
-                                case GameCommand.CommandType.BroadcastOthers:
+                                case CommandType.BroadcastOthers:
                                     Func_BroadcastOthers(host, command);
                                     break;
                             }

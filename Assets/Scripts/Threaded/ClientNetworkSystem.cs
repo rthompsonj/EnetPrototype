@@ -20,7 +20,7 @@ namespace Threaded
             base.Start();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.StartHost,
+                Type = CommandType.StartHost,
                 Host = "127.0.0.1",
                 Port = 9900,
                 UpdateTime = 0,
@@ -34,7 +34,7 @@ namespace Threaded
             base.OnDestroy();
             var command = new GameCommand
             {
-                Type = GameCommand.CommandType.StopHost
+                Type = CommandType.StopHost
             };
             m_commandQueue.Enqueue(command);
         }
