@@ -4,27 +4,27 @@ namespace Threaded
 {
     public static class ByteArrayPool
     {
-        private static ArrayPool<byte> m_buffers = null;
-        private static ArrayPool<byte> Buffers
+        private static ArrayPool<byte> m_pool = null;
+        private static ArrayPool<byte> Pool
         {
             get
             {
-                if (m_buffers == null)
+                if (m_pool == null)
                 {
-                    m_buffers = ArrayPool<byte>.Create(1024, 50);
+                    m_pool = ArrayPool<byte>.Create(1024, 50);
                 }
-                return m_buffers;
+                return m_pool;
             }
         }
 
         public static byte[] GetByteArray(int size)
         {
-            return Buffers.Rent(size);
+            return Pool.Rent(size);
         }
 
         public static void ReturnByteArray(byte[] data)
         {
-            Buffers.Return(data);
+            Pool.Return(data);
         }
     }
 }

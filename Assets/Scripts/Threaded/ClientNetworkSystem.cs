@@ -18,24 +18,20 @@ namespace Threaded
         protected override void Start()
         {
             base.Start();
-            var command = new GameCommand
-            {
-                Type = CommandType.StartHost,
-                Host = "127.0.0.1",
-                Port = 9900,
-                UpdateTime = 0,
-                ChannelCount = 100
-            };
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.StartHost;
+            command.Host = "127.0.0.1";
+            command.Port = 9900;
+            command.UpdateTime = 0;
+            command.ChannelCount = 100;
             m_commandQueue.Enqueue(command);
         }
 
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            var command = new GameCommand
-            {
-                Type = CommandType.StopHost
-            };
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.StopHost;
             m_commandQueue.Enqueue(command);
         }
         

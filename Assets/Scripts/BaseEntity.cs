@@ -104,12 +104,12 @@ namespace NextSimple
                 buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
                 buffer.AddSyncVar(m_randomValue);
                 Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
-                var command = new GameCommand
-                {
-                    Type = CommandType.BroadcastAll,
-                    Packet = packet,
-                    Channel = 0
-                };
+
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.BroadcastAll;
+                command.Packet = packet;
+                command.Channel = 0;
+                
                 m_server.AddCommandToQueue(command);
                 
                 m_randomValue.Dirty = false;
@@ -131,14 +131,11 @@ namespace NextSimple
                 m_buffer.AddEntityHeader(Peer, OpCodes.PositionUpdate);
                 m_buffer.AddVector3(gameObject.transform.position, SharedStuff.Instance.Range);
                 m_buffer.AddFloat(m_renderer.gameObject.transform.eulerAngles.y);
-                
-                
-                var command = new GameCommand
-                {
-                    Type = CommandType.Send,
-                    Packet = m_buffer.GetPacketFromBuffer(),
-                    Channel = 0
-                };
+
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.Send;
+                command.Packet = m_buffer.GetPacketFromBuffer();
+                command.Channel = 0;
 
                 m_client.AddCommandToQueue(command);
                 

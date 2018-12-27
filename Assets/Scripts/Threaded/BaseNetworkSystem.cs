@@ -60,7 +60,8 @@ namespace Threaded
         
         protected void Update()
         {
-            while (m_logicEventQueue.TryDequeue(out Event netEvent))
+            Event netEvent;
+            while (m_logicEventQueue.TryDequeue(out netEvent))
             {
                 switch (netEvent.Type)
                 {
@@ -98,14 +99,17 @@ namespace Threaded
             {
                 while (true)
                 {
+                    GameCommand command = null;
+                    Event netEvent;
+                    
                     // --> to network thread
-                    while (m_commandQueue.TryDequeue(out GameCommand command))
+                    while (m_commandQueue.TryDequeue(out command))
                     {
                         m_functionQueue.Enqueue(command);
                     }
                     
                     // --> to game thread
-                    while (m_transportEventQueue.TryDequeue(out Event netEvent))
+                    while (m_transportEventQueue.TryDequeue(out netEvent))
                     {
                         switch (netEvent.Type)
                         {
@@ -132,7 +136,9 @@ namespace Threaded
                     m_host = host;
                     while (true)
                     {
-                        while (m_functionQueue.TryDequeue(out GameCommand command))
+                        GameCommand command = null;
+                        
+                        while (m_functionQueue.TryDequeue(out command))
                         {
                             switch (command.Type)
                             {
@@ -162,6 +168,8 @@ namespace Threaded
                             {
                                 command.Packet.Dispose();
                             }
+                            
+                            GameCommandPool.ReturnGameCommand(command);
                         }
 
                         if (host.IsSet)

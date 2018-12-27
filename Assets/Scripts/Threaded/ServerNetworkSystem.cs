@@ -17,14 +17,12 @@ namespace Threaded
         {
             base.Start();
 
-            var command = new GameCommand
-            {
-                Type = CommandType.StartHost,
-                Port = 9900,
-                ChannelCount = 100,
-                PeerLimit = 100,
-                UpdateTime = 0
-            };
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.StartHost;
+            command.Port = 9900;
+            command.ChannelCount = 100;
+            command.PeerLimit = 100;
+            command.UpdateTime = 0;          
 
             m_commandQueue.Enqueue(command);
         }
@@ -126,12 +124,10 @@ namespace Threaded
                 {
                     m_buffer.AddEntityHeader(peer, OpCodes.Destroy);
                     var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
-                    var command = new GameCommand
-                    {
-                        Type = CommandType.BroadcastAll,
-                        Channel = 0,
-                        Packet = packet
-                    };
+                    var command = GameCommandPool.GetGameCommand();
+                    command.Type = CommandType.BroadcastAll;
+                    command.Packet = packet;
+                    command.Channel = 0;
                     m_commandQueue.Enqueue(command);                    
                 }
             }
@@ -156,14 +152,12 @@ namespace Threaded
             switch (op)
             {
                 case OpCodes.PositionUpdate:
-                    
-                    var command = new GameCommand
-                    {
-                        Type = CommandType.BroadcastOthers,
-                        Source = netEvent.Peer,
-                        Channel = 1,
-                        Packet = netEvent.Packet
-                    };
+
+                    var command = GameCommandPool.GetGameCommand();
+                    command.Type = CommandType.BroadcastOthers;
+                    command.Source = netEvent.Peer;
+                    command.Channel = 1;
+                    command.Packet = netEvent.Packet;
 
                     m_commandQueue.Enqueue(command);
 
@@ -196,25 +190,21 @@ namespace Threaded
             m_buffer.AddFloat(entity.gameObject.transform.eulerAngles.y);
             Packet packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
-            var command = new GameCommand
-            {
-                Type = CommandType.Send,
-                Target = peer,
-                Channel = 0,
-                Packet = packet
-            };
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.Send;
+            command.Target = peer;
+            command.Channel = 0;
+            command.Packet = packet;
 
             m_commandQueue.Enqueue(command);
 
-            command = new GameCommand
-            {
-                Type = CommandType.BroadcastOthers,
-                Source = peer,
-                Channel = 1,
-                Packet = packet
-            };
+            var otherCommand = GameCommandPool.GetGameCommand();
+            otherCommand.Type = CommandType.BroadcastOthers;
+            otherCommand.Source = peer;
+            otherCommand.Channel = 1;
+            otherCommand.Packet = packet;
 
-            m_commandQueue.Enqueue(command);
+            m_commandQueue.Enqueue(otherCommand);
             
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
@@ -227,15 +217,13 @@ namespace Threaded
                 m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
                 var othersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
-                command = new GameCommand
-                {
-                    Type = CommandType.Send,
-                    Packet = othersPacket,
-                    Channel = 1,
-                    Target = peer
-                };
+                var prevCommand = GameCommandPool.GetGameCommand();
+                prevCommand.Type = CommandType.Send;
+                prevCommand.Packet = othersPacket;
+                prevCommand.Channel = 1;
+                prevCommand.Target = peer;
                 
-                m_commandQueue.Enqueue(command);
+                m_commandQueue.Enqueue(prevCommand);
             }
 
             m_entityDict.Add(peer.ID, entity);
