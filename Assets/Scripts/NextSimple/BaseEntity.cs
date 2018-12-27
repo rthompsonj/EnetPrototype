@@ -23,19 +23,20 @@ namespace NextSimple
         private float m_updateRate = 0.1f;
         private SynchronizedFloat m_randomValue = new SynchronizedFloat();
         private BitBuffer m_buffer = new BitBuffer(128);
-        
-        
+
+        public Renderer Renderer => m_renderer;
         public bool HasPeer = false;
         
         public uint Id { get; private set; }
         public Peer Peer { get; private set; }
 
-        private Vector3 GetRandomPos()
+        private Vector4 GetRandomPos()
         {
-            return new Vector3(
-                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,                
+            return new Vector4(
                 Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
-                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange);            
+                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
+                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
+                Random.Range(0, 1f) * SharedStuff.Instance.RandomRange * 360f);
         }
 
         public void Initialize(Peer peer, uint id)
@@ -66,7 +67,7 @@ namespace NextSimple
             m_text.SetText("Local");
         }
 
-        public Vector3? m_newPos = null;
+        public Vector4? m_newPos = null;
 
         private float m_nextUpdate = 2f;
 
@@ -98,6 +99,8 @@ namespace NextSimple
             
             if (m_newPos.HasValue)
             {
+                var targetRot = Quaternion.Euler(new Vector3(0f, m_newPos.Value.w, 0f));
+                m_renderer.gameObject.transform.rotation = Quaternion.Lerp(m_renderer.gameObject.transform.rotation, targetRot, Time.deltaTime * 2f);
                 gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
                 if (Vector3.Distance(gameObject.transform.position, m_newPos.Value) < 0.1f)
                 {
@@ -137,7 +140,7 @@ namespace NextSimple
             {
                 m_buffer.AddEntityHeader(Peer, Threaded.OpCodes.PositionUpdate);
                 m_buffer.AddVector3(gameObject.transform.position, SharedStuff.Instance.Range);
-                m_buffer.AddFloat(gameObject.transform.eulerAngles.y);
+                m_buffer.AddFloat(m_renderer.gameObject.transform.eulerAngles.y);
                 
                 
                 var command = new BaseNetworkSystem.GameCommand

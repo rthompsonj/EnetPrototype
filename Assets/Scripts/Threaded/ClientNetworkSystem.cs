@@ -140,9 +140,7 @@ namespace Threaded
                         pos = buffer.ReadVector3(SharedStuff.Instance.Range);
                         h = buffer.ReadFloat();
 
-                        entity.m_newPos = pos;
-
-                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
+                        entity.m_newPos = new Vector4(pos.x, pos.y, pos.z, h);
                     }
                     else
                     {

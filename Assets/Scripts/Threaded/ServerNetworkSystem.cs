@@ -167,7 +167,7 @@ namespace Threaded
                         var pos = buffer.ReadVector3(SharedStuff.Instance.Range);
                         var h = buffer.ReadFloat();
                         entity.gameObject.transform.position = pos;
-                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
+                        entity.Renderer.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
                     }
                     break;
                 
