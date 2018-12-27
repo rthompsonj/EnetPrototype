@@ -188,23 +188,23 @@ namespace Threaded
             m_buffer.AddEntityHeader(peer, OpCodes.Spawn);
             m_buffer.AddVector3(entity.gameObject.transform.position, SharedStuff.Instance.Range);
             m_buffer.AddFloat(entity.gameObject.transform.eulerAngles.y);
-            Packet packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+            Packet spawnPlayerPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
-            var command = GameCommandPool.GetGameCommand();
-            command.Type = CommandType.Send;
-            command.Target = peer;
-            command.Channel = 0;
-            command.Packet = packet;
+            var spawnPlayerCommand = GameCommandPool.GetGameCommand();
+            spawnPlayerCommand.Type = CommandType.Send;
+            spawnPlayerCommand.Target = peer;
+            spawnPlayerCommand.Channel = 0;
+            spawnPlayerCommand.Packet = spawnPlayerPacket;
 
-            m_commandQueue.Enqueue(command);
+            m_commandQueue.Enqueue(spawnPlayerCommand);
 
-            var otherCommand = GameCommandPool.GetGameCommand();
-            otherCommand.Type = CommandType.BroadcastOthers;
-            otherCommand.Source = peer;
-            otherCommand.Channel = 1;
-            otherCommand.Packet = packet;
+            var spawnPlayerForOthersCommand = GameCommandPool.GetGameCommand();
+            spawnPlayerForOthersCommand.Type = CommandType.BroadcastOthers;
+            spawnPlayerForOthersCommand.Source = peer;
+            spawnPlayerForOthersCommand.Channel = 1;
+            spawnPlayerForOthersCommand.Packet = spawnPlayerPacket;
 
-            m_commandQueue.Enqueue(otherCommand);
+            m_commandQueue.Enqueue(spawnPlayerForOthersCommand);
             
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
@@ -215,15 +215,15 @@ namespace Threaded
                 m_buffer.AddEntityHeader(m_entities[i].Peer, OpCodes.Spawn);
                 m_buffer.AddVector3(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
                 m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
-                var othersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
-                var prevCommand = GameCommandPool.GetGameCommand();
-                prevCommand.Type = CommandType.Send;
-                prevCommand.Packet = othersPacket;
-                prevCommand.Channel = 1;
-                prevCommand.Target = peer;
+                var spawnOthersCommand = GameCommandPool.GetGameCommand();
+                spawnOthersCommand.Type = CommandType.Send;
+                spawnOthersCommand.Packet = spawnOthersPacket;
+                spawnOthersCommand.Channel = 1;
+                spawnOthersCommand.Target = peer;
                 
-                m_commandQueue.Enqueue(prevCommand);
+                m_commandQueue.Enqueue(spawnOthersCommand);
             }
 
             m_entityDict.Add(peer.ID, entity);
