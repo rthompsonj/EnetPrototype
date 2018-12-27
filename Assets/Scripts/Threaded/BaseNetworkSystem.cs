@@ -2,39 +2,13 @@ using System.Collections.Generic;
 using System.Threading;
 using DisruptorUnity3d;
 using ENet;
-using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
 
 namespace Threaded
-{    
-    public static class BitBufferExtensions
-    {
-        public static BitBuffer AddUShort(this BitBuffer buffer, ushort value)
-        {
-            buffer.AddUInt(value);
-            return buffer;
-        }
-
-        public static ushort ReadUShort(this BitBuffer buffer)
-        {
-            return (ushort) buffer.ReadUInt();
-        }
-
-        public static BitBuffer AddFloat(this BitBuffer buffer, float value)
-        {
-            buffer.AddUInt(new UIntFloat {floatValue = value }.uintValue);
-            return buffer;
-        }
-
-        public static float ReadFloat(this BitBuffer buffer)
-        {
-            return new UIntFloat {uintValue = buffer.ReadUInt()}.floatValue;
-        }
-    }
-    
+{
     public abstract class BaseNetworkSystem : MonoBehaviour
     {
         public class GameCommand

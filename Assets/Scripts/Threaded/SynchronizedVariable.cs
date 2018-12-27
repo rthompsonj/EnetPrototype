@@ -1,7 +1,5 @@
 using System;
-using NetStack.Compression;
 using NetStack.Serialization;
-using UnityEngine;
 
 namespace Threaded
 {

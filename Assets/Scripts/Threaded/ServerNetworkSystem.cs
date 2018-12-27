@@ -1,6 +1,5 @@
 using System;
 using ENet;
-using NetStack.Compression;
 using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
@@ -10,6 +9,8 @@ namespace Threaded
 {
     public class ServerNetworkSystem : BaseNetworkSystem
     {
+        private BitBuffer m_buffer = new BitBuffer(128);
+        
         protected override void Start()
         {
             base.Start();
@@ -117,11 +118,8 @@ namespace Threaded
                 // notify everyone else
                 if (m_entities.Count > 0)
                 {
-                    byte[] data = new byte[8];
-                    BitBuffer buffer = new BitBuffer(128);
-                    buffer.AddUShort((ushort) OpCodes.Destroy).AddUInt(id).ToArray(data);
-                    Packet packet = default(Packet);
-                    packet.Create(data);
+                    m_buffer.AddEntityHeader(peer, OpCodes.Destroy);
+                    var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
                     var command = new GameCommand
                     {
                         Type = GameCommand.CommandType.BroadcastAll,
@@ -136,15 +134,12 @@ namespace Threaded
         protected override void ProcessPacket(Event netEvent)
         {
             //Debug.Log($"Packet received from - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}, Channel ID: {netEvent.ChannelID}, Data Length: {netEvent.Packet.Length}");
-            
-            byte[] data = new byte[1024];
-            netEvent.Packet.CopyTo(data);
-             
-            BitBuffer buffer = new BitBuffer(128);
-            buffer.FromArray(data, netEvent.Packet.Length);
 
-            OpCodes op = (OpCodes) buffer.ReadUShort();
-            uint id = buffer.ReadUInt();
+            m_buffer = netEvent.Packet.GetBufferFromPacket(m_buffer);
+            var buffer = m_buffer;
+            var header = buffer.GetEntityHeader();
+            var op = header.OpCode;
+            var id = header.ID;
 
             if (netEvent.Peer.ID != id)
             {
@@ -169,11 +164,10 @@ namespace Threaded
                     BaseEntity entity = null;
                     if (m_entityDict.TryGetValue(netEvent.Peer.ID, out entity))
                     {
-                        var posUpdate = PackerUnpacker.DeserializePositionUpdate(buffer, SharedStuff.Instance.Range);
-                        entity.gameObject.transform.position = posUpdate.Position;
-                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, posUpdate.Heading, 0f));
-                        
-                        //entity.gameObject.transform.position = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                        var pos = buffer.ReadVector3(SharedStuff.Instance.Range);
+                        var h = buffer.ReadFloat();
+                        entity.gameObject.transform.position = pos;
+                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
                     }
                     break;
                 
@@ -190,19 +184,10 @@ namespace Threaded
             BaseEntity entity = SharedStuff.Instance.SpawnPlayer();
             entity.Initialize(peer, peer.ID);
 
-            CompressedVector3 pos = BoundedRange.Compress(entity.gameObject.transform.position, SharedStuff.Instance.Range);
-
-            byte[] data = new byte[16];
-            BitBuffer buffer = new BitBuffer(128);
-            buffer.AddUShort((ushort)OpCodes.Spawn)
-                .AddUInt(entity.Id)
-                .AddUInt(pos.x)
-                .AddUInt(pos.y)
-                .AddUInt(pos.z)
-                .ToArray(data);            
-
-            Packet packet = default(Packet);
-            packet.Create(data);
+            m_buffer.AddEntityHeader(peer, OpCodes.Spawn);
+            m_buffer.AddVector3(entity.gameObject.transform.position, SharedStuff.Instance.Range);
+            m_buffer.AddFloat(entity.gameObject.transform.eulerAngles.y);
+            Packet packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
             var command = new GameCommand
             {
@@ -229,24 +214,19 @@ namespace Threaded
             {
                 if (m_entities[i].Peer.ID == peer.ID)
                     continue;
-                command = PackerUnpacker.GetPositionUpdate(OpCodes.Spawn, m_entities[i].Peer.ID, m_entities[i].gameObject, SharedStuff.Instance.Range, 1);
-                command.Target = peer;
                 
-                /*
-                pos = BoundedRange.Compress(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
-                buffer.Clear();
-                buffer.AddUShort((ushort) OpCodes.Spawn).AddUInt(m_entities[i].Id).AddUInt(pos.x).AddUInt(pos.y)
-                    .AddUInt(pos.z).ToArray(data);
-                packet.Create(data);
-                
+                m_buffer.AddEntityHeader(m_entities[i].Peer, OpCodes.Spawn);
+                m_buffer.AddVector3(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
+                m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
+                var othersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+
                 command = new GameCommand
                 {
                     Type = GameCommand.CommandType.Send,
-                    Target = peer,
+                    Packet = othersPacket,
                     Channel = 1,
-                    Packet = packet
+                    Target = peer
                 };
-                */
                 
                 m_commandQueue.Enqueue(command);
             }

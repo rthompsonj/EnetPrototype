@@ -22,6 +22,8 @@ namespace NextSimple
 
         private float m_updateRate = 0.1f;
         private SynchronizedFloat m_randomValue = new SynchronizedFloat();
+        private BitBuffer m_buffer = new BitBuffer(128);
+        
         
         public bool HasPeer = false;
         
@@ -109,13 +111,10 @@ namespace NextSimple
                 {
                     m_nextUpdate += m_updateRate;
 
-                    BitBuffer buffer = new BitBuffer(128);
-                    buffer.AddUShort((ushort) Threaded.OpCodes.SyncUpdate).AddUInt(Peer.ID);
-                    buffer = m_randomValue.PackVariable(buffer);
-                    byte[] data = new byte[buffer.Length+4];
-                    buffer.ToArray(data);
-                    Packet packet = default(Packet);
-                    packet.Create(data, PacketFlags.Reliable);
+                    BitBuffer buffer = m_buffer;
+                    buffer.AddEntityHeader(Peer, Threaded.OpCodes.SyncUpdate);
+                    buffer.AddSyncVar(m_randomValue);
+                    Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
                     var command = new BaseNetworkSystem.GameCommand
                     {
                         Type = BaseNetworkSystem.GameCommand.CommandType.BroadcastAll,
@@ -136,28 +135,18 @@ namespace NextSimple
 
             if (CanUpdate())
             {
+                m_buffer.AddEntityHeader(Peer, Threaded.OpCodes.PositionUpdate);
+                m_buffer.AddVector3(gameObject.transform.position, SharedStuff.Instance.Range);
+                m_buffer.AddFloat(gameObject.transform.eulerAngles.y);
                 
-                /*
-                var h = HalfPrecision.Compress(gameObject.transform.eulerAngles.y);
-                var pos = BoundedRange.Compress(gameObject.transform.position, SharedStuff.Instance.Range);
-                byte[] data = new byte[16];
-                BitBuffer buffer = new BitBuffer(128);
-                buffer.AddInt((int) OpCodes.PositionUpdate).
-                    AddUInt(Id).AddUInt(pos.x).AddUInt(pos.y).AddUInt(pos.z).AddUShort(h)
-                    .ToArray(data);
-                Packet packet = default(Packet);
-                packet.Create(data);
-                //Peer.Send(0, ref packet);                
                 
                 var command = new BaseNetworkSystem.GameCommand
                 {
                     Type = BaseNetworkSystem.GameCommand.CommandType.Send,
-                    Packet = packet,
+                    Packet = m_buffer.GetPacketFromBuffer(),
                     Channel = 0
                 };
-                */
 
-                var command = PackerUnpacker.GetPositionUpdate(Threaded.OpCodes.PositionUpdate, Peer.ID, gameObject, SharedStuff.Instance.Range, 0);
                 m_client.AddCommandToQueue(command);
                 
                 m_nextUpdate = Time.time + 0.1f;

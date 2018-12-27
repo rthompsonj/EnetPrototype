@@ -1,6 +1,5 @@
 using System;
 using ENet;
-using NetStack.Compression;
 using NetStack.Serialization;
 using NextSimple;
 using UnityEngine;
@@ -11,6 +10,8 @@ namespace Threaded
     public class ClientNetworkSystem : BaseNetworkSystem
     {
         public Peer Peer { get; private set; }
+        
+        private BitBuffer m_buffer = new BitBuffer(128);
         
         protected override void Start()
         {
@@ -98,26 +99,24 @@ namespace Threaded
 
         protected override void ProcessPacket(Event netEvent)
         {
-            Packet packet = netEvent.Packet;
             byte channel = netEvent.ChannelID;
+            m_buffer = netEvent.Packet.GetBufferFromPacket(m_buffer);
+            var buffer = m_buffer;
+            var header = m_buffer.GetEntityHeader();
+            var op = header.OpCode;
+            var id = header.ID;
             
-            byte[] data = new byte[1024];
-            packet.CopyTo(data);
-	        
-            BitBuffer buffer = new BitBuffer(128);
-            buffer.FromArray(data, packet.Length);
-
-            OpCodes op = (OpCodes) buffer.ReadUShort();
-            uint id = buffer.ReadUInt();
-
             BaseEntity entity = null;
-            CompressedVector3 compressedPos;
+            Vector3 pos;
+            float h;
 
             switch (op)
             {
                 case OpCodes.Spawn:
                     entity = SharedStuff.Instance.SpawnPlayer();
-                    entity.Initialize(id, SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range), Peer);
+                    pos = buffer.ReadVector3(SharedStuff.Instance.Range);
+                    h = buffer.ReadFloat();
+                    entity.Initialize(id, pos, Peer);
                     if (channel == 0)
                     {
                         entity.AssumeOwnership();
@@ -138,13 +137,12 @@ namespace Threaded
                 case OpCodes.PositionUpdate:
                     if (m_entityDict.TryGetValue(id, out entity))
                     {
-                        var posUpdate = PackerUnpacker.DeserializePositionUpdate(buffer, SharedStuff.Instance.Range);
-                        
-                        entity.m_newPos = posUpdate.Position;
+                        pos = buffer.ReadVector3(SharedStuff.Instance.Range);
+                        h = buffer.ReadFloat();
 
-                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, posUpdate.Heading, 0f));
-                        
-                        //entity.m_newPos = SharedStuff.ReadAndGetPositionFromCompressed(buffer, SharedStuff.Instance.Range);
+                        entity.m_newPos = pos;
+
+                        entity.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
                     }
                     else
                     {
