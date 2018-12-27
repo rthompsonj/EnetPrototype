@@ -11,6 +11,8 @@ namespace Threaded
     {
         private BitBuffer m_buffer = new BitBuffer(128);
         
+        #region MONO
+        
         protected override void Start()
         {
             base.Start();
@@ -36,6 +38,10 @@ namespace Threaded
             };
             m_commandQueue.Enqueue(command);
         }
+        
+        #endregion
+        
+        #region OVERRIDES
         
         protected override void Func_StartHost(Host host, GameCommand command)
         {
@@ -177,6 +183,7 @@ namespace Threaded
             }
         }
         
+        #endregion
         
         
         private void SpawnRemotePlayer(Peer peer)

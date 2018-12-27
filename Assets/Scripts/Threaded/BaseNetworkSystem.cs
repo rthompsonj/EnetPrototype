@@ -47,10 +47,7 @@ namespace Threaded
         protected abstract void Func_Send(Host host, GameCommand command);
         protected abstract void Func_BroadcastAll(Host host, GameCommand command);
         protected abstract void Func_BroadcastOthers(Host host, GameCommand command);
-        
-        
-        //protected abstract Thread LogicThread();
-        //protected abstract Thread NetworkThread();
+
         protected abstract void Connect(Event netEvent);
         protected abstract void Disconnect(Event netEvent);
         protected abstract void ProcessPacket(Event netEvent);
@@ -71,6 +68,8 @@ namespace Threaded
         protected readonly List<BaseEntity> m_entities = new List<BaseEntity>();
         protected readonly Dictionary<uint, BaseEntity> m_entityDict = new Dictionary<uint, BaseEntity>();
         
+        #region MONO
+        
         protected virtual void Start()
         {
             m_logicThread = LogicThread();
@@ -84,7 +83,41 @@ namespace Threaded
         {
             
         }
+        
+        protected void Update()
+        {
+            while (m_logicEventQueue.TryDequeue(out Event netEvent))
+            {
+                switch (netEvent.Type)
+                {
+                    case EventType.None:
+                        break;
+                    
+                    case EventType.Connect:
+                        Connect(netEvent);
+                        break;
+                    
+                    case EventType.Disconnect:
+                        Disconnect(netEvent);
+                        break;
+                    
+                    case EventType.Timeout:
+                        Disconnect(netEvent);
+                        break;
+                    
+                    case EventType.Receive:
+                        ProcessPacket(netEvent);
+                        break;                    
+                }
+            }
+            
+            UpdateStats();
+        }
+        
+        #endregion
 
+        #region THREADS
+        
         private Thread LogicThread()
         {
             return new Thread(() =>
@@ -171,36 +204,8 @@ namespace Threaded
                 }
             });           
         }
-
-        protected void Update()
-        {
-            while (m_logicEventQueue.TryDequeue(out Event netEvent))
-            {
-                switch (netEvent.Type)
-                {
-                    case EventType.None:
-                        break;
-                    
-                    case EventType.Connect:
-                        Connect(netEvent);
-                        break;
-                    
-                    case EventType.Disconnect:
-                        Disconnect(netEvent);
-                        break;
-                    
-                    case EventType.Timeout:
-                        Disconnect(netEvent);
-                        break;
-                    
-                    case EventType.Receive:
-                        ProcessPacket(netEvent);
-                        break;                    
-                }
-            }
-            
-            UpdateStats();
-        }
+        
+        #endregion
         
         public void AddCommandToQueue(GameCommand command)
         {

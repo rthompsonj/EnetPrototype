@@ -21,82 +21,29 @@ namespace NextSimple
         [SerializeField] private Renderer m_renderer;
 
         private float m_updateRate = 0.1f;
-        private SynchronizedFloat m_randomValue = new SynchronizedFloat();
-        private BitBuffer m_buffer = new BitBuffer(128);
+        private readonly SynchronizedFloat m_randomValue = new SynchronizedFloat();
+        private readonly BitBuffer m_buffer = new BitBuffer(128);
+        private float m_nextUpdate = 2f;
 
         public Renderer Renderer => m_renderer;
-        public bool HasPeer = false;
+        
+        public Vector4? m_newPos = null;
         
         public uint Id { get; private set; }
         public Peer Peer { get; private set; }
-
-        private Vector4 GetRandomPos()
-        {
-            return new Vector4(
-                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
-                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
-                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
-                Random.Range(0, 1f) * SharedStuff.Instance.RandomRange * 360f);
-        }
-
-        public void Initialize(Peer peer, uint id)
-        {
-            Peer = peer;
-            Id = id;
-            gameObject.transform.position = GetRandomPos();
-            gameObject.name = $"{Id} (SERVER)";
-            m_renderer.material = m_serverMat;
-            m_isServer = true;
-        }
-
-        public void Initialize(uint id, Vector3 pos, Peer peer)
-        {
-            Peer = peer;
-            Id = id;
-            gameObject.transform.position = pos;
-            gameObject.name = $"{Id} (CLIENT)";
-            m_renderer.material = m_clientRemoteMat;
-            m_text.SetText("Remote");
-        }
-
-        public void AssumeOwnership()
-        {
-            m_isLocal = true;
-            gameObject.name = $"{gameObject.name} OWNER";
-            m_renderer.material = m_clientLocalMat;
-            m_text.SetText("Local");
-        }
-
-        public Vector4? m_newPos = null;
-
-        private float m_nextUpdate = 2f;
-
+        
+        #region MONO
+        
         void Start()
         {
+            //TODO: don't actually do this in production; this is me being lazy
             m_client = FindObjectOfType<ClientNetworkSystem>();
             m_server = FindObjectOfType<ServerNetworkSystem>();
-            m_randomValue.Changed += Changed;
+            m_randomValue.Changed += RandomValChanged;
         }
-
-        private void Changed(float value)
-        {
-            if (m_isServer == false)
-            {
-                float prev = m_randomValue.Value;
-                Debug.Log($"Value Changed from {prev} to {value}!");
-                m_randomValue.Value = value;   
-            }
-        }
-
-        public void ProcessSyncUpdate(BitBuffer buffer)
-        {
-            m_randomValue.ReadVariable(buffer);
-        }
-
+        
         void Update()
         {
-            HasPeer = Peer.IsSet;
-            
             if (m_newPos.HasValue)
             {
                 var targetRot = Quaternion.Euler(new Vector3(0f, m_newPos.Value.w, 0f));
@@ -154,6 +101,65 @@ namespace NextSimple
                 
                 m_nextUpdate = Time.time + 0.1f;
             }
+        }
+        
+        #endregion
+        
+        #region INIT
+        
+        public void Initialize(Peer peer, uint id)
+        {
+            Peer = peer;
+            Id = id;
+            gameObject.transform.position = GetRandomPos();
+            gameObject.name = $"{Id} (SERVER)";
+            m_renderer.material = m_serverMat;
+            m_isServer = true;
+        }
+
+        public void Initialize(uint id, Vector3 pos, Peer peer)
+        {
+            Peer = peer;
+            Id = id;
+            gameObject.transform.position = pos;
+            gameObject.name = $"{Id} (CLIENT)";
+            m_renderer.material = m_clientRemoteMat;
+            m_text.SetText("Remote");
+        }
+                
+        #endregion
+        
+
+        private Vector4 GetRandomPos()
+        {
+            return new Vector4(
+                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
+                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
+                Random.Range(-1f, 1f) * SharedStuff.Instance.RandomRange,
+                Random.Range(0, 1f) * SharedStuff.Instance.RandomRange * 360f);
+        }
+
+        public void AssumeOwnership()
+        {
+            m_isLocal = true;
+            gameObject.name = $"{gameObject.name} OWNER";
+            m_renderer.material = m_clientLocalMat;
+            m_text.SetText("Local");
+        }
+
+        private void RandomValChanged(float value)
+        {
+            if (m_isServer == false)
+            {
+                float prev = m_randomValue.Value;
+                Debug.Log($"Value Changed from {prev} to {value}!");
+                m_randomValue.Value = value;   
+            }
+        }
+
+        public void ProcessSyncUpdate(BitBuffer buffer)
+        {
+            m_randomValue.ReadVariable(buffer);
         }
 
         private bool CanUpdate()
