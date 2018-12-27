@@ -16,7 +16,6 @@ namespace Threaded
         public static BitBuffer GetBufferFromPacket(this Packet packet, BitBuffer buffer = null)
         {
             var data = ByteArrayPool.GetByteArray(packet.Length + 4);
-            //byte[] data = new byte[packet.Length+4];
             
             packet.CopyTo(data);
 
@@ -40,7 +39,6 @@ namespace Threaded
     {
         public static Packet GetPacketFromBuffer(this BitBuffer buffer, PacketFlags flags = PacketFlags.None)
         {
-            //byte[] data = new byte[buffer.Length + 4];
             var data = ByteArrayPool.GetByteArray(buffer.Length + 4);
             buffer.ToArray(data);
             Packet packet = default(Packet);

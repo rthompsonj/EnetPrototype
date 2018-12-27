@@ -18,12 +18,12 @@ namespace NextSimple
         [SerializeField] private Material m_clientRemoteMat = null;
         [SerializeField] private Material m_clientLocalMat = null;
         [SerializeField] private Material m_serverMat = null;
-        [SerializeField] private Renderer m_renderer;
+        [SerializeField] private Renderer m_renderer = null;
 
         private float m_updateRate = 0.1f;
         private readonly SynchronizedFloat m_randomValue = new SynchronizedFloat();
         private readonly BitBuffer m_buffer = new BitBuffer(128);
-        private float m_nextUpdate = 2f;
+        private float m_nextUpdate = 0f;
 
         public Renderer Renderer => m_renderer;
         
@@ -44,63 +44,9 @@ namespace NextSimple
         
         void Update()
         {
-            if (m_newPos.HasValue)
-            {
-                var targetRot = Quaternion.Euler(new Vector3(0f, m_newPos.Value.w, 0f));
-                m_renderer.gameObject.transform.rotation = Quaternion.Lerp(m_renderer.gameObject.transform.rotation, targetRot, Time.deltaTime * 2f);
-                gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
-                if (Vector3.Distance(gameObject.transform.position, m_newPos.Value) < 0.1f)
-                {
-                    m_newPos = null;
-                }
-            }
-
-            if (m_isLocal == false)
-            {
-                if (m_randomValue.Dirty && CanUpdate())
-                {
-                    m_nextUpdate += m_updateRate;
-
-                    BitBuffer buffer = m_buffer;
-                    buffer.AddEntityHeader(Peer, Threaded.OpCodes.SyncUpdate);
-                    buffer.AddSyncVar(m_randomValue);
-                    Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
-                    var command = new BaseNetworkSystem.GameCommand
-                    {
-                        Type = BaseNetworkSystem.GameCommand.CommandType.BroadcastAll,
-                        Packet = packet,
-                        Channel = 0
-                    };
-                    m_server.AddCommandToQueue(command);
-                    
-                    m_randomValue.Dirty = false;
-                }
-                return;   
-            }
-
-            if(m_newPos.HasValue == false)
-            {
-                m_newPos = GetRandomPos();
-            }
-
-            if (CanUpdate())
-            {
-                m_buffer.AddEntityHeader(Peer, Threaded.OpCodes.PositionUpdate);
-                m_buffer.AddVector3(gameObject.transform.position, SharedStuff.Instance.Range);
-                m_buffer.AddFloat(m_renderer.gameObject.transform.eulerAngles.y);
-                
-                
-                var command = new BaseNetworkSystem.GameCommand
-                {
-                    Type = BaseNetworkSystem.GameCommand.CommandType.Send,
-                    Packet = m_buffer.GetPacketFromBuffer(),
-                    Channel = 0
-                };
-
-                m_client.AddCommandToQueue(command);
-                
-                m_nextUpdate = Time.time + 0.1f;
-            }
+            LerpPositionRotation();
+            UpdateSyncVars();
+            UpdateLocal();
         }
         
         #endregion
@@ -127,6 +73,79 @@ namespace NextSimple
             m_text.SetText("Remote");
         }
                 
+        #endregion
+        
+        #region UPDATES
+
+        private void LerpPositionRotation()
+        {
+            if (m_newPos.HasValue)
+            {
+                var targetRot = Quaternion.Euler(new Vector3(0f, m_newPos.Value.w, 0f));
+                m_renderer.gameObject.transform.rotation = Quaternion.Lerp(m_renderer.gameObject.transform.rotation, targetRot, Time.deltaTime * 2f);
+                gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
+                if (Vector3.Distance(gameObject.transform.position, m_newPos.Value) < 0.1f)
+                {
+                    m_newPos = null;
+                }
+            }
+        }
+
+        private void UpdateSyncVars()
+        {
+            if (m_isServer == false)
+                return;
+            
+            if (m_randomValue.Dirty && CanUpdate())
+            {
+                m_nextUpdate += m_updateRate;
+
+                BitBuffer buffer = m_buffer;
+                buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
+                buffer.AddSyncVar(m_randomValue);
+                Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                var command = new BaseNetworkSystem.GameCommand
+                {
+                    Type = BaseNetworkSystem.GameCommand.CommandType.BroadcastAll,
+                    Packet = packet,
+                    Channel = 0
+                };
+                m_server.AddCommandToQueue(command);
+                
+                m_randomValue.Dirty = false;
+            }
+        }
+
+        private void UpdateLocal()
+        {
+            if (m_isLocal == false)
+                return;
+
+            if(m_newPos.HasValue == false)
+            {
+                m_newPos = GetRandomPos();
+            }
+
+            if (CanUpdate())
+            {
+                m_buffer.AddEntityHeader(Peer, OpCodes.PositionUpdate);
+                m_buffer.AddVector3(gameObject.transform.position, SharedStuff.Instance.Range);
+                m_buffer.AddFloat(m_renderer.gameObject.transform.eulerAngles.y);
+                
+                
+                var command = new BaseNetworkSystem.GameCommand
+                {
+                    Type = BaseNetworkSystem.GameCommand.CommandType.Send,
+                    Packet = m_buffer.GetPacketFromBuffer(),
+                    Channel = 0
+                };
+
+                m_client.AddCommandToQueue(command);
+                
+                m_nextUpdate = Time.time + 0.1f;
+            }
+        }
+        
         #endregion
         
 

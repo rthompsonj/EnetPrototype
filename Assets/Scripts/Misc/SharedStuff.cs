@@ -35,14 +35,5 @@ namespace NextSimple
             BaseEntity entity = go.GetComponent<BaseEntity>();
             return entity;
         }
-
-        public static Vector3 ReadAndGetPositionFromCompressed(BitBuffer buffer, BoundedRange[] range)
-        {
-	        var x = buffer.ReadUInt();
-            var y = buffer.ReadUInt();
-            var z = buffer.ReadUInt();
-            var compressedPos = new CompressedVector3(x, y, z);
-            return BoundedRange.Decompress(compressedPos, range);
-        }
     }
 }
