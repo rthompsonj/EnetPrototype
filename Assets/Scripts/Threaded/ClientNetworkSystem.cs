@@ -36,11 +36,6 @@ namespace Threaded
             m_commandQueue.Enqueue(command);
         }
 
-        public void AddCommandToQueue(GameCommand command)
-        {
-            m_commandQueue.Enqueue(command);   
-        }
-
         protected override void Func_StartHost(Host host, GameCommand command)
         {
             Debug.Log("STARTING CLIENT FROM NETWORK THREAD");
@@ -154,6 +149,13 @@ namespace Threaded
                     else
                     {
                         Debug.LogWarning($"Unable to locate entity ID: {id}");
+                    }
+                    break;
+                
+                case OpCodes.SyncUpdate:
+                    if (m_entityDict.TryGetValue(id, out entity))
+                    {
+                        entity.ProcessSyncUpdate(buffer);
                     }
                     break;
             }

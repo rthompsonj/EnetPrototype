@@ -1,4 +1,5 @@
 using ENet;
+using NetStack.Serialization;
 using Threaded;
 using TMPro;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace NextSimple
         private bool m_isLocal = false;
 
         private ClientNetworkSystem m_client = null;
+        private ServerNetworkSystem m_server = null;
 
         [SerializeField] private TextMeshPro m_text = null;
         [SerializeField] private Material m_clientRemoteMat = null;
@@ -18,6 +20,9 @@ namespace NextSimple
         [SerializeField] private Material m_serverMat = null;
         [SerializeField] private Renderer m_renderer;
 
+        private float m_updateRate = 0.1f;
+        private SynchronizedFloat m_randomValue = new SynchronizedFloat();
+        
         public bool HasPeer = false;
         
         public uint Id { get; private set; }
@@ -38,6 +43,7 @@ namespace NextSimple
             gameObject.transform.position = GetRandomPos();
             gameObject.name = $"{Id} (SERVER)";
             m_renderer.material = m_serverMat;
+            m_isServer = true;
         }
 
         public void Initialize(uint id, Vector3 pos, Peer peer)
@@ -65,6 +71,23 @@ namespace NextSimple
         void Start()
         {
             m_client = FindObjectOfType<ClientNetworkSystem>();
+            m_server = FindObjectOfType<ServerNetworkSystem>();
+            m_randomValue.Changed += Changed;
+        }
+
+        private void Changed(float value)
+        {
+            if (m_isServer == false)
+            {
+                float prev = m_randomValue.Value;
+                Debug.Log($"Value Changed from {prev} to {value}!");
+                m_randomValue.Value = value;   
+            }
+        }
+
+        public void ProcessSyncUpdate(BitBuffer buffer)
+        {
+            m_randomValue.ReadVariable(buffer);
         }
 
         void Update()
@@ -79,16 +102,39 @@ namespace NextSimple
                     m_newPos = null;
                 }
             }
-            
+
             if (m_isLocal == false)
-                return;
+            {
+                if (m_randomValue.Dirty && CanUpdate())
+                {
+                    m_nextUpdate += m_updateRate;
+
+                    BitBuffer buffer = new BitBuffer(128);
+                    buffer.AddUShort((ushort) Threaded.OpCodes.SyncUpdate).AddUInt(Peer.ID);
+                    buffer = m_randomValue.PackVariable(buffer);
+                    byte[] data = new byte[buffer.Length+4];
+                    buffer.ToArray(data);
+                    Packet packet = default(Packet);
+                    packet.Create(data, PacketFlags.Reliable);
+                    var command = new BaseNetworkSystem.GameCommand
+                    {
+                        Type = BaseNetworkSystem.GameCommand.CommandType.BroadcastAll,
+                        Packet = packet,
+                        Channel = 0
+                    };
+                    m_server.AddCommandToQueue(command);
+                    
+                    m_randomValue.Dirty = false;
+                }
+                return;   
+            }
 
             if(m_newPos.HasValue == false)
             {
                 m_newPos = GetRandomPos();
             }
 
-            if (Peer.IsSet && Time.time > m_nextUpdate)
+            if (CanUpdate())
             {
                 
                 /*
@@ -116,6 +162,22 @@ namespace NextSimple
                 
                 m_nextUpdate = Time.time + 0.1f;
             }
+        }
+
+        private bool CanUpdate()
+        {
+            return Peer.IsSet && Time.time > m_nextUpdate;
+        }
+
+        [ContextMenu("Generate Random Value")]
+        private void GenRandomVal()
+        {
+            if (m_isServer == false)
+                return;
+            float prev = m_randomValue.Value;
+            m_randomValue.Value = Random.Range(0f, 1f);
+            Debug.Log($"Generated from {prev} to {m_randomValue.Value}");
+            m_randomValue.Dirty = true;
         }
     }
 }

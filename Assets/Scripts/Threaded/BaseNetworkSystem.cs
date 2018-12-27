@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using DisruptorUnity3d;
@@ -15,13 +14,24 @@ namespace Threaded
     {
         public static BitBuffer AddUShort(this BitBuffer buffer, ushort value)
         {
-            buffer.Add(2, value);
+            buffer.AddUInt(value);
             return buffer;
         }
 
         public static ushort ReadUShort(this BitBuffer buffer)
         {
-            return (ushort)buffer.Read(2);
+            return (ushort) buffer.ReadUInt();
+        }
+
+        public static BitBuffer AddFloat(this BitBuffer buffer, float value)
+        {
+            buffer.AddUInt(new UIntFloat {floatValue = value }.uintValue);
+            return buffer;
+        }
+
+        public static float ReadFloat(this BitBuffer buffer)
+        {
+            return new UIntFloat {uintValue = buffer.ReadUInt()}.floatValue;
         }
     }
     
@@ -208,6 +218,11 @@ namespace Threaded
                         break;                    
                 }
             }
+        }
+        
+        public void AddCommandToQueue(GameCommand command)
+        {
+            m_commandQueue.Enqueue(command);   
         }
     }
 }

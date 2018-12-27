@@ -18,16 +18,15 @@ namespace Threaded
             var pos = BoundedRange.Compress(obj.transform.position, range);            
             var heading = HalfPrecision.Compress(obj.transform.eulerAngles.y);
 
-            byte[] data = new byte[14];            
             BitBuffer buffer = new BitBuffer(128);
-            buffer
-                .AddUShort((ushort)op)
+            buffer.AddUShort((ushort)op)
                 .AddUInt(id)
                 .AddUInt(pos.x)
                 .AddUInt(pos.y)
                 .AddUInt(pos.z)
-                .AddUShort(heading)
-                .ToArray(data);
+                .AddUShort(heading);
+            byte[] data = new byte[buffer.Length+4];
+            buffer.ToArray(data);
 
             Packet packet = default(Packet);
             packet.Create(data);

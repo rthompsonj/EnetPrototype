@@ -4,6 +4,7 @@ namespace Threaded
     {
         Spawn,
         Destroy,
-        PositionUpdate
+        PositionUpdate,
+        SyncUpdate
     }
 }
