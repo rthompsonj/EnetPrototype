@@ -3,11 +3,20 @@ using NetStack.Serialization;
 
 namespace Threaded
 {
-    public abstract class SynchronizedVariable<T>
+    public interface ISynchronizedVariable
+    {
+        bool Dirty { get; set; }
+        int BitFlag { get; set; }
+        BitBuffer PackVariable(BitBuffer buffer);
+        BitBuffer ReadVariable(BitBuffer buffer);
+    }
+    
+    public abstract class SynchronizedVariable<T> : ISynchronizedVariable
     {
         public Action<T> Changed;
         public bool Dirty { get; set; }        
-
+        public int BitFlag { get; set; }
+        
         private T m_value = default(T);
         
         public T Value

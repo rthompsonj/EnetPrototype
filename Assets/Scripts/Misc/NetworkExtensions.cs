@@ -62,13 +62,13 @@ namespace Threaded
             return header;
         }
 
-        public static BitBuffer AddSyncVar<T>(this BitBuffer buffer, SynchronizedVariable<T> var)
+        public static BitBuffer AddSyncVar(this BitBuffer buffer, ISynchronizedVariable var)
         {
             var.PackVariable(buffer);
             return buffer;
         }
 
-        public static void ReadSyncVar<T>(this BitBuffer buffer, SynchronizedVariable<T> var)
+        public static void ReadSyncVar(this BitBuffer buffer, ISynchronizedVariable var)
         {
             var.ReadVariable(buffer);
         }

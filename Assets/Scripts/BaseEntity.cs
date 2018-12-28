@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ENet;
 using NetStack.Serialization;
 using Threaded;
@@ -8,6 +9,23 @@ namespace NextSimple
 {
     public class BaseEntity : MonoBehaviour
     {
+        private static readonly int[] BitFlags = new int[]
+        {
+            1 << 0,
+            1 << 1,
+            1 << 2,
+            1 << 3,
+            1 << 4,
+            1 << 5,
+            1 << 6,
+            1 << 7,
+            1 << 8,
+            1 << 9,
+            1 << 10,
+            1 << 11,
+            1 << 12,
+        };
+        
         private bool m_isServer = false;
         private bool m_isLocal = false;
 
@@ -21,9 +39,13 @@ namespace NextSimple
         [SerializeField] private Renderer m_renderer = null;
 
         private float m_updateRate = 0.1f;
-        private readonly SynchronizedFloat m_randomValue = new SynchronizedFloat();
         private readonly BitBuffer m_buffer = new BitBuffer(128);
         private float m_nextUpdate = 0f;
+
+        private readonly SynchronizedFloat m_randomValue = new SynchronizedFloat();
+        private readonly SynchronizedString m_stringValue = new SynchronizedString();
+
+        private readonly List<ISynchronizedVariable> m_syncs = new List<ISynchronizedVariable>();
 
         public Renderer Renderer => m_renderer;
         
@@ -33,6 +55,15 @@ namespace NextSimple
         public Peer Peer { get; private set; }
         
         #region MONO
+
+        void Awake()
+        {
+            m_syncs.Add(m_randomValue);
+            m_syncs.Add(m_stringValue);
+
+            m_randomValue.BitFlag = BitFlags[0];
+            m_stringValue.BitFlag = BitFlags[1];
+        }
         
         void Start()
         {
@@ -40,8 +71,9 @@ namespace NextSimple
             m_client = FindObjectOfType<ClientNetworkSystem>();
             m_server = FindObjectOfType<ServerNetworkSystem>();
             m_randomValue.Changed += RandomValChanged;
+            m_stringValue.Changed += StringValChanged;
         }
-        
+
         void Update()
         {
             LerpPositionRotation();
@@ -93,27 +125,43 @@ namespace NextSimple
 
         private void UpdateSyncVars()
         {
-            if (m_isServer == false)
+            if (m_isServer == false || CanUpdate() == false)
                 return;
             
-            if (m_randomValue.Dirty && CanUpdate())
+            m_nextUpdate += m_updateRate;
+
+            int dirtyBits = 0;
+
+            for (int i = 0; i < m_syncs.Count; i++)
             {
-                m_nextUpdate += m_updateRate;
-
-                BitBuffer buffer = m_buffer;
-                buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
-                buffer.AddSyncVar(m_randomValue);
-                Packet packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
-
-                var command = GameCommandPool.GetGameCommand();
-                command.Type = CommandType.BroadcastAll;
-                command.Packet = packet;
-                command.Channel = 0;
-                
-                m_server.AddCommandToQueue(command);
-                
-                m_randomValue.Dirty = false;
+                if (m_syncs[i].Dirty)
+                {
+                    dirtyBits = dirtyBits | m_syncs[i].BitFlag;
+                }
             }
+
+            if (dirtyBits == 0)
+                return;
+            
+            var buffer = m_buffer;
+            buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
+            buffer.AddInt(dirtyBits);
+
+            for (int i = 0; i < m_syncs.Count; i++)
+            {
+                if (m_syncs[i].Dirty)
+                {
+                    buffer.AddSyncVar(m_syncs[i]);
+                }
+            }
+
+            Debug.Log($"Sending dirtyBits: {dirtyBits}");
+            var packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.BroadcastAll;
+            command.Packet = packet;
+            command.Channel = 0;
+            m_server.AddCommandToQueue(command);
         }
 
         private void UpdateLocal()
@@ -167,15 +215,36 @@ namespace NextSimple
         {
             if (m_isServer == false)
             {
-                float prev = m_randomValue.Value;
-                Debug.Log($"Value Changed from {prev} to {value}!");
+                Debug.Log($"Value Changed to {value}!");
                 m_randomValue.Value = value;   
+            }
+        }
+        
+        private void StringValChanged(string value)
+        {
+            if (m_isServer == false)
+            {
+                Debug.Log($"Value Changed to {value}!");
+                m_stringValue.Value = value;
             }
         }
 
         public void ProcessSyncUpdate(BitBuffer buffer)
         {
-            m_randomValue.ReadVariable(buffer);
+            int dirtyBits = buffer.ReadInt();
+
+            Debug.Log($"Received dirtyBits: {dirtyBits}");
+            
+            if (dirtyBits == 0)
+                return;
+            
+            for (int i = 0; i < m_syncs.Count; i++)
+            {
+                if ((dirtyBits & m_syncs[i].BitFlag) == m_syncs[i].BitFlag)
+                {
+                    m_syncs[i].ReadVariable(buffer);
+                }
+            }
         }
 
         private bool CanUpdate()
@@ -192,6 +261,24 @@ namespace NextSimple
             m_randomValue.Value = Random.Range(0f, 1f);
             Debug.Log($"Generated from {prev} to {m_randomValue.Value}");
             m_randomValue.Dirty = true;
+        }
+        
+        [ContextMenu("Generate Random String")]
+        private void GenRandomString()
+        {
+            if (m_isServer == false)
+                return;
+            string prev = m_stringValue.Value;
+            m_stringValue.Value = System.Guid.NewGuid().ToString();
+            Debug.Log($"Generated from {prev} to {m_stringValue.Value}");
+            m_stringValue.Dirty = true;
+        }
+
+        [ContextMenu("Generate Random Value & String")]
+        private void GenRandomValString()
+        {
+            GenRandomVal();
+            GenRandomString();
         }
     }
 }
