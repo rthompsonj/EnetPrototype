@@ -15,7 +15,7 @@ namespace Threaded
             get { return m_value; }
             set
             {
-                if (m_value.Equals(value))
+                if (m_value != null && m_value.Equals(value))
                     return;
                 m_value = value;
                 Changed?.Invoke(m_value);
