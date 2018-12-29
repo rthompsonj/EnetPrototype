@@ -86,6 +86,14 @@ namespace NextSimple
             UpdateLocal();
         }
 
+        private void OnMouseDown()
+        {
+            if (m_isServer)
+            {
+                GenRandomString1();
+            }
+        }
+
         #endregion
 
         #region INIT
@@ -98,6 +106,7 @@ namespace NextSimple
             gameObject.name = $"{Id} (SERVER)";
             m_renderer.material = m_serverMat;
             m_isServer = true;
+            m_text.SetText(Id.ToString());
         }
 
         public void Initialize(uint id, Vector3 pos, Peer peer)
@@ -235,6 +244,7 @@ namespace NextSimple
             {
                 Debug.Log($"StringVal1 Changed to {value}!");
                 m_stringValue1.Value = value;
+                m_text.SetText(m_stringValue1.Value);
             }
         }
 
