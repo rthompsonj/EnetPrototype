@@ -15,6 +15,7 @@ namespace Threaded
     {
         [SerializeField] private TextMeshProUGUI m_stats = null;
         private Host m_host;
+        protected Peer m_peer;
         
         protected abstract void Func_StartHost(Host host, GameCommand command);
         protected abstract void Func_StopHost(Host host, GameCommand command);
@@ -208,7 +209,16 @@ namespace Threaded
             m_sb.AppendLine($"{m_host.PacketsSent}\tPackets Sent");
             m_sb.AppendLine($"{m_host.PacketsReceived}\tPackets Received");
             m_sb.AppendLine("");
-            m_sb.AppendLine($"{m_host.PeersCount}\tPeer Count");
+            if (m_peer.IsSet)
+            {
+                m_sb.AppendLine($"{m_peer.PacketsLost}\tPackets Lost");
+                m_sb.AppendLine($"{m_peer.RoundTripTime}\tRTT");
+                m_sb.AppendLine($"{m_peer.State}\tState");
+            }
+            else
+            {
+                m_sb.AppendLine($"{m_host.PeersCount}\tPeer Count");   
+            }
             m_stats.SetText(m_sb.ToString());
         }
 

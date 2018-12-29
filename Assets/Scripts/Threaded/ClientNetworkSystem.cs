@@ -9,7 +9,11 @@ namespace Threaded
 {
     public class ClientNetworkSystem : BaseNetworkSystem
     {
-        public Peer Peer { get; private set; }
+        public Peer Peer
+        {
+            get { return m_peer;}
+            private set { m_peer = value; }            
+        }
         
         private BitBuffer m_buffer = new BitBuffer(128);
         
