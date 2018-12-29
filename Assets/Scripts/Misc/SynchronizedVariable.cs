@@ -15,7 +15,7 @@ namespace Threaded
     
     public abstract class SynchronizedVariable<T> : ISynchronizedVariable
     {
-        public Action<T> Changed;
+        public event Action<T> Changed;
         public bool Dirty { get; private set; }        
         public int BitFlag { get; set; }
         
