@@ -8,11 +8,11 @@
 *.prefab merge=unityyamlmerge eol=lf
 *.physicsMaterial2D merge=unityyamlmerge eol=lf
 *.physicsMaterial merge=unityyamlmerge eol=lf
-*.asset filter=lfs diff=lfs merge=lfs -text
 *.meta merge=unityyamlmerge eol=lf
 *.controller merge=unityyamlmerge eol=lf
 ## git-lfs ##
 #SpecialFolders
+/Assets/TextMesh Pro/Sprites/**.asset filter=lfs diff=lfs merge=lfs -text
 /Assets/Scenes/**.asset filter=lfs diff=lfs merge=lfs -text
 #/Assets/Scenes/Zones/**.asset filter=lfs diff=lfs merge=lfs -text
 *.pdb filter=lfs diff=lfs merge=lfs -text
