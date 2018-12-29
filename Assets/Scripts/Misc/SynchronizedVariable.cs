@@ -1,12 +1,13 @@
 using System;
+using System.Text;
 using NetStack.Serialization;
 
 namespace Threaded
 {
     public interface ISynchronizedVariable
     {
-        bool Dirty { get; set; }
-        int BitFlag { get; set; }
+        bool Dirty { get; }
+        int BitFlag { get; }
         BitBuffer PackVariable(BitBuffer buffer);
         BitBuffer ReadVariable(BitBuffer buffer);
     }
@@ -14,7 +15,7 @@ namespace Threaded
     public abstract class SynchronizedVariable<T> : ISynchronizedVariable
     {
         public Action<T> Changed;
-        public bool Dirty { get; set; }        
+        public bool Dirty { get; protected set; }        
         public int BitFlag { get; set; }
         
         private T m_value = default(T);
@@ -27,6 +28,7 @@ namespace Threaded
                 if (m_value != null && m_value.Equals(value))
                     return;
                 m_value = value;
+                Dirty = true;
                 Changed?.Invoke(m_value);
             }
         }
@@ -39,11 +41,6 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
-            if (Dirty == false)
-            {
-                return buffer;                
-            }
-
             buffer.AddInt(Value);
             Dirty = false;
             return buffer;
@@ -60,11 +57,6 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
-            if (Dirty == false)
-            {
-                return buffer;                
-            }
-
             buffer.AddUInt(Value);
             Dirty = false;
             return buffer;
@@ -81,17 +73,7 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
-            if (Dirty == false)
-            {
-                return buffer;                
-            }
-
             buffer.AddFloat(Value);
-            /*
-            ushort compressed = HalfPrecision.Compress(Value);
-            Debug.Log($"Compressed {Value} to {compressed}");
-            buffer.AddUShort(compressed);
-            */
             Dirty = false;
             return buffer;
         }
@@ -99,11 +81,6 @@ namespace Threaded
         public override BitBuffer ReadVariable(BitBuffer buffer)
         {
             Value = buffer.ReadFloat();
-            /*
-            ushort compressed = buffer.ReadUShort();
-            Value = HalfPrecision.Decompress(compressed);
-            Debug.Log($"Uncompressed {compressed} to {Value}");
-            */
             return buffer;
         }
     }
@@ -112,11 +89,6 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
-            if (Dirty == false)
-            {
-                return buffer;                
-            }
-
             buffer.AddString(Value);
             Dirty = false;
             return buffer;
@@ -125,6 +97,38 @@ namespace Threaded
         public override BitBuffer ReadVariable(BitBuffer buffer)
         {
             Value = buffer.ReadString();
+            return buffer;
+        }
+    }
+
+    /// <summary>
+    /// Avoids limitations of BitBuffer string packing 512 limit.
+    /// </summary>
+    public class SynchronizedASCII : SynchronizedVariable<string>
+    {
+        public override BitBuffer PackVariable(BitBuffer buffer)
+        {
+            int len = Value.Length;
+            buffer.AddInt(len);
+            for (int i = 0; i < len; i++)
+            {
+                buffer.AddByte((byte) Value[i]);
+            }
+            Dirty = false;
+            return buffer;
+        }
+
+        public override BitBuffer ReadVariable(BitBuffer buffer)
+        {
+            int len = buffer.ReadInt();            
+            
+            StringBuilder sb = new StringBuilder(len);
+            
+            for (int i = 0; i < len; i++)
+            {
+                sb.Insert(i, (char)buffer.ReadByte());
+            }
+            Value = sb.ToString();
             return buffer;
         }
     }

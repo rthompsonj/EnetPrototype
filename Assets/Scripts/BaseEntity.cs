@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using ENet;
 using NetStack.Serialization;
 using Threaded;
@@ -25,7 +26,7 @@ namespace NextSimple
             1 << 11,
             1 << 12,
         };
-        
+
         private bool m_isServer = false;
         private bool m_isLocal = false;
 
@@ -43,35 +44,39 @@ namespace NextSimple
         private float m_nextUpdate = 0f;
 
         private readonly SynchronizedFloat m_randomValue = new SynchronizedFloat();
-        private readonly SynchronizedString m_stringValue = new SynchronizedString();
+        private readonly SynchronizedString m_stringValue1 = new SynchronizedString();
+        private readonly SynchronizedASCII m_stringValue2 = new SynchronizedASCII();
 
         private readonly List<ISynchronizedVariable> m_syncs = new List<ISynchronizedVariable>();
 
         public Renderer Renderer => m_renderer;
-        
+
         public Vector4? m_newPos = null;
-        
+
         public uint Id { get; private set; }
         public Peer Peer { get; private set; }
-        
+
         #region MONO
 
         void Awake()
         {
             m_syncs.Add(m_randomValue);
-            m_syncs.Add(m_stringValue);
+            m_syncs.Add(m_stringValue1);
+            m_syncs.Add(m_stringValue2);
 
             m_randomValue.BitFlag = BitFlags[0];
-            m_stringValue.BitFlag = BitFlags[1];
+            m_stringValue1.BitFlag = BitFlags[1];
+            m_stringValue2.BitFlag = BitFlags[2];
         }
-        
+
         void Start()
         {
             //TODO: don't actually do this in production; this is me being lazy
             m_client = FindObjectOfType<ClientNetworkSystem>();
             m_server = FindObjectOfType<ServerNetworkSystem>();
             m_randomValue.Changed += RandomValChanged;
-            m_stringValue.Changed += StringValChanged;
+            m_stringValue1.Changed += StringValChanged1;
+            m_stringValue2.Changed += StringValChanged2;
         }
 
         void Update()
@@ -80,11 +85,11 @@ namespace NextSimple
             UpdateSyncVars();
             UpdateLocal();
         }
-        
+
         #endregion
-        
+
         #region INIT
-        
+
         public void Initialize(Peer peer, uint id)
         {
             Peer = peer;
@@ -104,9 +109,9 @@ namespace NextSimple
             m_renderer.material = m_clientRemoteMat;
             m_text.SetText("Remote");
         }
-                
+
         #endregion
-        
+
         #region UPDATES
 
         private void LerpPositionRotation()
@@ -114,8 +119,10 @@ namespace NextSimple
             if (m_newPos.HasValue)
             {
                 var targetRot = Quaternion.Euler(new Vector3(0f, m_newPos.Value.w, 0f));
-                m_renderer.gameObject.transform.rotation = Quaternion.Lerp(m_renderer.gameObject.transform.rotation, targetRot, Time.deltaTime * 2f);
-                gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
+                m_renderer.gameObject.transform.rotation = Quaternion.Lerp(m_renderer.gameObject.transform.rotation,
+                    targetRot, Time.deltaTime * 2f);
+                gameObject.transform.position =
+                    Vector3.Lerp(gameObject.transform.position, m_newPos.Value, Time.deltaTime * 2f);
                 if (Vector3.Distance(gameObject.transform.position, m_newPos.Value) < 0.1f)
                 {
                     m_newPos = null;
@@ -127,7 +134,7 @@ namespace NextSimple
         {
             if (m_isServer == false || CanUpdate() == false)
                 return;
-            
+
             m_nextUpdate += m_updateRate;
 
             int dirtyBits = 0;
@@ -142,7 +149,7 @@ namespace NextSimple
 
             if (dirtyBits == 0)
                 return;
-            
+
             var buffer = m_buffer;
             buffer.AddEntityHeader(Peer, OpCodes.SyncUpdate);
             buffer.AddInt(dirtyBits);
@@ -155,12 +162,14 @@ namespace NextSimple
                 }
             }
 
-            Debug.Log($"Sending dirtyBits: {dirtyBits}");
             var packet = buffer.GetPacketFromBuffer(PacketFlags.Reliable);
             var command = GameCommandPool.GetGameCommand();
             command.Type = CommandType.BroadcastAll;
             command.Packet = packet;
             command.Channel = 0;
+
+            Debug.Log($"Sending dirtyBits: {dirtyBits}  Length: {packet.Length}");
+
             m_server.AddCommandToQueue(command);
         }
 
@@ -169,7 +178,7 @@ namespace NextSimple
             if (m_isLocal == false)
                 return;
 
-            if(m_newPos.HasValue == false)
+            if (m_newPos.HasValue == false)
             {
                 m_newPos = GetRandomPos();
             }
@@ -186,13 +195,13 @@ namespace NextSimple
                 command.Channel = 0;
 
                 m_client.AddCommandToQueue(command);
-                
+
                 m_nextUpdate = Time.time + 0.1f;
             }
         }
-        
+
         #endregion
-        
+
 
         private Vector4 GetRandomPos()
         {
@@ -215,17 +224,26 @@ namespace NextSimple
         {
             if (m_isServer == false)
             {
-                Debug.Log($"Value Changed to {value}!");
-                m_randomValue.Value = value;   
+                Debug.Log($"RandomVal Changed to {value}!");
+                m_randomValue.Value = value;
             }
         }
-        
-        private void StringValChanged(string value)
+
+        private void StringValChanged1(string value)
         {
             if (m_isServer == false)
             {
-                Debug.Log($"Value Changed to {value}!");
-                m_stringValue.Value = value;
+                Debug.Log($"StringVal1 Changed to {value}!");
+                m_stringValue1.Value = value;
+            }
+        }
+
+        private void StringValChanged2(string value)
+        {
+            if (m_isServer == false)
+            {
+                Debug.Log($"StringVal2 Changed to {value}!");
+                m_stringValue2.Value = value;
             }
         }
 
@@ -234,10 +252,10 @@ namespace NextSimple
             int dirtyBits = buffer.ReadInt();
 
             Debug.Log($"Received dirtyBits: {dirtyBits}");
-            
+
             if (dirtyBits == 0)
                 return;
-            
+
             for (int i = 0; i < m_syncs.Count; i++)
             {
                 if ((dirtyBits & m_syncs[i].BitFlag) == m_syncs[i].BitFlag)
@@ -252,6 +270,8 @@ namespace NextSimple
             return Peer.IsSet && Time.time > m_nextUpdate;
         }
 
+        #region TEMPORARY_FOR_TESTING
+
         [ContextMenu("Generate Random Value")]
         private void GenRandomVal()
         {
@@ -260,25 +280,51 @@ namespace NextSimple
             float prev = m_randomValue.Value;
             m_randomValue.Value = Random.Range(0f, 1f);
             Debug.Log($"Generated from {prev} to {m_randomValue.Value}");
-            m_randomValue.Dirty = true;
         }
-        
-        [ContextMenu("Generate Random String")]
-        private void GenRandomString()
+
+        public int stringIterations = 10;
+
+        [ContextMenu("Generate Random String1")]
+        private void GenRandomString1()
         {
             if (m_isServer == false)
                 return;
-            string prev = m_stringValue.Value;
-            m_stringValue.Value = System.Guid.NewGuid().ToString();
-            Debug.Log($"Generated from {prev} to {m_stringValue.Value}");
-            m_stringValue.Dirty = true;
+            string prev = m_stringValue1.Value;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < stringIterations; i++)
+            {
+                sb.Append(System.Guid.NewGuid().ToString());
+            }
+
+            m_stringValue1.Value = sb.ToString();
+            Debug.Log($"Generated from {prev} to {m_stringValue1.Value}");
+        }
+
+        [ContextMenu("Generate Random String2")]
+        private void GenRandomString2()
+        {
+            if (m_isServer == false)
+                return;
+            string prev = m_stringValue2.Value;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < stringIterations; i++)
+            {
+                sb.Append(System.Guid.NewGuid().ToString());
+            }
+
+            m_stringValue2.Value = sb.ToString();
+            Debug.Log($"Generated from {prev} to {m_stringValue2.Value}");
         }
 
         [ContextMenu("Generate Random Value & String")]
-        private void GenRandomValString()
+        private void GenRandomValStrings()
         {
             GenRandomVal();
-            GenRandomString();
+            GenRandomString1();
+            GenRandomString2();
         }
+
+
+        #endregion
     }
 }
