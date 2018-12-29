@@ -8,25 +8,8 @@ using UnityEngine;
 
 namespace NextSimple
 {
-    public class BaseEntity : MonoBehaviour
+    public partial class BaseEntity : NetworkedEntity
     {
-        private static readonly int[] BitFlags = new int[]
-        {
-            1 << 0,
-            1 << 1,
-            1 << 2,
-            1 << 3,
-            1 << 4,
-            1 << 5,
-            1 << 6,
-            1 << 7,
-            1 << 8,
-            1 << 9,
-            1 << 10,
-            1 << 11,
-            1 << 12,
-        };
-
         private bool m_isServer = false;
         private bool m_isLocal = false;
 
@@ -47,7 +30,7 @@ namespace NextSimple
         private readonly SynchronizedString m_stringValue1 = new SynchronizedString();
         private readonly SynchronizedASCII m_stringValue2 = new SynchronizedASCII();
 
-        private readonly List<ISynchronizedVariable> m_syncs = new List<ISynchronizedVariable>();
+        //private readonly List<ISynchronizedVariable> m_syncs = new List<ISynchronizedVariable>();
 
         public Renderer Renderer => m_renderer;
 
@@ -58,26 +41,10 @@ namespace NextSimple
 
         #region MONO
 
-        void Awake()
+        protected override void Awake()
         {
-            m_syncs.Add(m_randomValue);
-            m_syncs.Add(m_stringValue1);
-            m_syncs.Add(m_stringValue2);
-
-            m_randomValue.BitFlag = BitFlags[0];
-            m_stringValue1.BitFlag = BitFlags[1];
-            m_stringValue2.BitFlag = BitFlags[2];
-            
-            m_randomValue.Changed += RandomValChanged;
-            m_stringValue1.Changed += StringValChanged1;
-            m_stringValue2.Changed += StringValChanged2;
-        }
-
-        void Start()
-        {
-            //TODO: don't actually do this in production; this is me being lazy
-            m_client = FindObjectOfType<ClientNetworkSystem>();
-            m_server = FindObjectOfType<ServerNetworkSystem>();
+            base.Awake();
+            Subscribe();
         }
 
         void Update()
@@ -85,6 +52,11 @@ namespace NextSimple
             LerpPositionRotation();
             UpdateSyncVars();
             UpdateLocal();
+        }
+
+        private void OnDestroy()
+        {
+            Unsubscribe();
         }
 
         private void OnMouseDown()
@@ -98,6 +70,20 @@ namespace NextSimple
         #endregion
 
         #region INIT
+
+        private void Subscribe()
+        {
+            m_randomValue.Changed += RandomValChanged;
+            m_stringValue1.Changed += StringValChanged1;
+            m_stringValue2.Changed += StringValChanged2;
+        }
+
+        private void Unsubscribe()
+        {
+            m_randomValue.Changed -= RandomValChanged;
+            m_stringValue1.Changed -= StringValChanged1;
+            m_stringValue2.Changed -= StringValChanged2;            
+        }
 
         public void Initialize(Peer peer, uint id)
         {
