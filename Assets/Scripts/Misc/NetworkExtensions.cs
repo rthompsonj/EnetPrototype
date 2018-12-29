@@ -48,9 +48,12 @@ namespace Threaded
             return packet;
         }
         
-        public static BitBuffer AddEntityHeader(this BitBuffer buffer, Peer peer, OpCodes opCode)
+        public static BitBuffer AddEntityHeader(this BitBuffer buffer, Peer peer, OpCodes opCode, bool clearBuffer = true)
         {
-            buffer.Clear();
+            if (clearBuffer)
+            {
+                buffer.Clear();   
+            }
             buffer.AddUShort((ushort) opCode).AddUInt(peer.ID);
             return buffer;
         }   

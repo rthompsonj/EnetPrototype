@@ -206,7 +206,11 @@ namespace Threaded
             spawnPlayerForOthersCommand.Packet = spawnPlayerPacket;
 
             m_commandQueue.Enqueue(spawnPlayerForOthersCommand);
+
+            int packetSize = 0;
             
+            // individual packets
+            /*
             // must send all of the old data
             for (int i = 0; i < m_entities.Count; i++)
             {
@@ -225,11 +229,40 @@ namespace Threaded
                 spawnOthersCommand.Channel = 1;
                 spawnOthersCommand.Target = peer;
                 
+                packetSize += spawnOthersPacket.Length;
+                
                 m_commandQueue.Enqueue(spawnOthersCommand);
             }
+            */
+            
+            // one large packet
+            m_buffer.AddEntityHeader(peer, OpCodes.BulkSpawn);
+            m_buffer.AddInt(m_entities.Count);
+            for (int i = 0; i < m_entities.Count; i++)
+            {
+                if (m_entities[i].Peer.ID == peer.ID)
+                    continue;
+
+                m_buffer.AddEntityHeader(m_entities[i].Peer, OpCodes.Spawn, false);
+                m_buffer.AddVector3(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
+                m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
+                m_buffer.AddEntitySyncData(m_entities[i]);
+            }
+            var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+            var spawnOthersCommand = GameCommandPool.GetGameCommand();
+            spawnOthersCommand.Type = CommandType.Send;
+            spawnOthersCommand.Packet = spawnOthersPacket;
+            spawnOthersCommand.Channel = 1;
+            spawnOthersCommand.Target = peer;
+
+            packetSize += spawnOthersPacket.Length;
+            
+            m_commandQueue.Enqueue(spawnOthersCommand);
 
             m_entityDict.Add(peer.ID, entity);
             m_entities.Add(entity);
+            
+            Debug.Log($"Sent SpawnOthersPacket of size {packetSize.ToString()}");
         }
     }
 }

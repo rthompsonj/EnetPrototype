@@ -119,14 +119,20 @@ namespace Threaded
             switch (op)
             {
                 case OpCodes.Spawn:
-                    entity = SharedStuff.Instance.SpawnPlayer();
-                    entity.Initialize(id, Peer, buffer);
+                    entity = SpawnPlayer(id, buffer);
                     if (channel == 0)
                     {
                         entity.AssumeOwnership();
                     }
-                    m_entityDict.Add(id, entity);
-                    m_entities.Add(entity);
+                    break;
+                
+                case OpCodes.BulkSpawn:
+                    var cnt = m_buffer.ReadInt();
+                    for (int i = 0; i < cnt; i++)
+                    {
+                        header = m_buffer.GetEntityHeader();
+                        SpawnPlayer(header.ID, buffer);
+                    }
                     break;
 		        
                 case OpCodes.Destroy:
@@ -159,6 +165,15 @@ namespace Threaded
                     }
                     break;
             }
+        }
+
+        private BaseEntity SpawnPlayer(uint id, BitBuffer buffer)
+        {
+            var entity = SharedStuff.Instance.SpawnPlayer();
+            entity.Initialize(id, Peer, buffer);
+            m_entityDict.Add(id, entity);
+            m_entities.Add(entity);
+            return entity;
         }
         
         #endregion
