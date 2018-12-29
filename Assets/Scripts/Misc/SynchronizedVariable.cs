@@ -8,6 +8,7 @@ namespace Threaded
     {
         bool Dirty { get; }
         int BitFlag { get; }
+        void ResetDirty();
         BitBuffer PackVariable(BitBuffer buffer);
         BitBuffer ReadVariable(BitBuffer buffer);
     }
@@ -15,7 +16,7 @@ namespace Threaded
     public abstract class SynchronizedVariable<T> : ISynchronizedVariable
     {
         public Action<T> Changed;
-        public bool Dirty { get; protected set; }        
+        public bool Dirty { get; private set; }        
         public int BitFlag { get; set; }
         
         private T m_value = default(T);
@@ -33,6 +34,11 @@ namespace Threaded
             }
         }
 
+        public void ResetDirty()
+        {
+            Dirty = false;
+        }
+
         public abstract BitBuffer PackVariable(BitBuffer buffer);
         public abstract BitBuffer ReadVariable(BitBuffer buffer);
     }
@@ -42,7 +48,6 @@ namespace Threaded
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddInt(Value);
-            Dirty = false;
             return buffer;
         }
 
@@ -58,7 +63,6 @@ namespace Threaded
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddUInt(Value);
-            Dirty = false;
             return buffer;
         }
 
@@ -74,7 +78,6 @@ namespace Threaded
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddFloat(Value);
-            Dirty = false;
             return buffer;
         }
 
@@ -89,8 +92,13 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
+            // cannot send nulls
+            if (Value == null)
+            {
+                Value = "";
+            }
+            
             buffer.AddString(Value);
-            Dirty = false;
             return buffer;
         }
 
@@ -108,13 +116,18 @@ namespace Threaded
     {
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
+            // cannot send nulls
+            if (Value == null)
+            {
+                Value = "";
+            }
+            
             int len = Value.Length;
             buffer.AddInt(len);
             for (int i = 0; i < len; i++)
             {
                 buffer.AddByte((byte) Value[i]);
             }
-            Dirty = false;
             return buffer;
         }
 

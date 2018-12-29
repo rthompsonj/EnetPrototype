@@ -67,6 +67,10 @@ namespace NextSimple
             m_randomValue.BitFlag = BitFlags[0];
             m_stringValue1.BitFlag = BitFlags[1];
             m_stringValue2.BitFlag = BitFlags[2];
+            
+            m_randomValue.Changed += RandomValChanged;
+            m_stringValue1.Changed += StringValChanged1;
+            m_stringValue2.Changed += StringValChanged2;
         }
 
         void Start()
@@ -74,9 +78,6 @@ namespace NextSimple
             //TODO: don't actually do this in production; this is me being lazy
             m_client = FindObjectOfType<ClientNetworkSystem>();
             m_server = FindObjectOfType<ServerNetworkSystem>();
-            m_randomValue.Changed += RandomValChanged;
-            m_stringValue1.Changed += StringValChanged1;
-            m_stringValue2.Changed += StringValChanged2;
         }
 
         void Update()
@@ -109,14 +110,22 @@ namespace NextSimple
             m_text.SetText(Id.ToString());
         }
 
-        public void Initialize(uint id, Vector3 pos, Peer peer)
+        public void Initialize(uint id, Peer peer, BitBuffer buffer)
         {
             Peer = peer;
             Id = id;
-            gameObject.transform.position = pos;
+            
             gameObject.name = $"{Id} (CLIENT)";
             m_renderer.material = m_clientRemoteMat;
-            m_text.SetText("Remote");
+
+            var pos = buffer.ReadVector3(SharedStuff.Instance.Range);
+            var rot = Quaternion.Euler(new Vector3(0f, buffer.ReadFloat(), 0f));
+            gameObject.transform.SetPositionAndRotation(pos, rot);
+
+            for (int i = 0; i < m_syncs.Count; i++)
+            {
+                m_syncs[i].ReadVariable(buffer);
+            }
         }
 
         #endregion
@@ -139,6 +148,7 @@ namespace NextSimple
             }
         }
 
+        //TODO: change this to an AddDirtySyncVars and have a manager handle the updates
         private void UpdateSyncVars()
         {
             if (m_isServer == false || CanUpdate() == false)
@@ -180,6 +190,15 @@ namespace NextSimple
             Debug.Log($"Sending dirtyBits: {dirtyBits}  Length: {packet.Length}");
 
             m_server.AddCommandToQueue(command);
+        }
+        
+        public BitBuffer AddAllSyncData(BitBuffer buffer)
+        {
+            for (int i = 0; i < m_syncs.Count; i++)
+            {
+                buffer.AddSyncVar(m_syncs[i], false);
+            }
+            return buffer;
         }
 
         private void UpdateLocal()
@@ -244,7 +263,10 @@ namespace NextSimple
             {
                 Debug.Log($"StringVal1 Changed to {value}!");
                 m_stringValue1.Value = value;
-                m_text.SetText(m_stringValue1.Value);
+                if (value.Length >= 8)
+                {
+                    m_text.SetText(m_stringValue1.Value.Substring(0, 8));   
+                }
             }
         }
 

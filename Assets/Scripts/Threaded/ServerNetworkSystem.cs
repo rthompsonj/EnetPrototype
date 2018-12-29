@@ -188,6 +188,7 @@ namespace Threaded
             m_buffer.AddEntityHeader(peer, OpCodes.Spawn);
             m_buffer.AddVector3(entity.gameObject.transform.position, SharedStuff.Instance.Range);
             m_buffer.AddFloat(entity.gameObject.transform.eulerAngles.y);
+            m_buffer.AddEntitySyncData(entity);
             Packet spawnPlayerPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
             var spawnPlayerCommand = GameCommandPool.GetGameCommand();
@@ -215,6 +216,7 @@ namespace Threaded
                 m_buffer.AddEntityHeader(m_entities[i].Peer, OpCodes.Spawn);
                 m_buffer.AddVector3(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
                 m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
+                m_buffer.AddEntitySyncData(m_entities[i]);
                 var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
                 var spawnOthersCommand = GameCommandPool.GetGameCommand();

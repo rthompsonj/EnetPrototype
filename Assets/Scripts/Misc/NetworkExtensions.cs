@@ -1,6 +1,7 @@
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
+using NextSimple;
 using UnityEngine;
 
 namespace Threaded
@@ -62,9 +63,13 @@ namespace Threaded
             return header;
         }
 
-        public static BitBuffer AddSyncVar(this BitBuffer buffer, ISynchronizedVariable var)
+        public static BitBuffer AddSyncVar(this BitBuffer buffer, ISynchronizedVariable value, bool resetDirty = true)
         {
-            var.PackVariable(buffer);
+            value.PackVariable(buffer);
+            if (resetDirty)
+            {
+                value.ResetDirty();
+            }
             return buffer;
         }
 
@@ -109,6 +114,11 @@ namespace Threaded
                 buffer.ReadUInt(),
                 buffer.ReadUInt());
             return BoundedRange.Decompress(compressed, range);
-        }   
+        }
+
+        public static BitBuffer AddEntitySyncData(this BitBuffer buffer, BaseEntity entity)
+        {
+            return entity.AddAllSyncData(buffer);
+        }
     }
 }

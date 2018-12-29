@@ -120,9 +120,7 @@ namespace Threaded
             {
                 case OpCodes.Spawn:
                     entity = SharedStuff.Instance.SpawnPlayer();
-                    pos = buffer.ReadVector3(SharedStuff.Instance.Range);
-                    h = buffer.ReadFloat();
-                    entity.Initialize(id, pos, Peer);
+                    entity.Initialize(id, Peer, buffer);
                     if (channel == 0)
                     {
                         entity.AssumeOwnership();

@@ -51,7 +51,7 @@ MonoBehaviour:
   m_clientLocalMat: {fileID: 2100000, guid: ae3c0ff9b4a064c72a48af0001a64116, type: 2}
   m_serverMat: {fileID: 2100000, guid: 9ce89cebf326c443b81b8cc52825eab4, type: 2}
   m_renderer: {fileID: 6224464332904697764}
-  stringIterations: 10
+  stringIterations: 1
 --- !u!65 &2129597563089855454
 BoxCollider:
   m_ObjectHideFlags: 0
