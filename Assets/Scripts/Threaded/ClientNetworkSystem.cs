@@ -24,8 +24,8 @@ namespace Threaded
             base.Start();
             var command = GameCommandPool.GetGameCommand();
             command.Type = CommandType.StartHost;
-            command.Host = "127.0.0.1";
-            command.Port = 9900;
+            command.Host = m_targetHost;
+            command.Port = m_targetPort;
             command.UpdateTime = 0;
             command.ChannelCount = 100;
             m_commandQueue.Enqueue(command);

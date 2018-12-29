@@ -19,7 +19,7 @@ namespace Threaded
 
             var command = GameCommandPool.GetGameCommand();
             command.Type = CommandType.StartHost;
-            command.Port = 9900;
+            command.Port = m_targetPort;
             command.ChannelCount = 100;
             command.PeerLimit = 100;
             command.UpdateTime = 0;          

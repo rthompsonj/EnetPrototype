@@ -16,6 +16,9 @@ namespace Threaded
         [SerializeField] private TextMeshProUGUI m_stats = null;
         private Host m_host;
         protected Peer m_peer;
+
+        [SerializeField] protected string m_targetHost = "127.0.0.1";
+        [SerializeField] protected ushort m_targetPort = 9900;
         
         protected abstract void Func_StartHost(Host host, GameCommand command);
         protected abstract void Func_StopHost(Host host, GameCommand command);
