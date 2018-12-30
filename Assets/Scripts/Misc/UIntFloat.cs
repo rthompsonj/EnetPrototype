@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Threaded
+namespace SoL.Networking
 {
     /// <summary>
     /// https://github.com/MidLevel/MLAPI/blob/master/MLAPI/NetworkingManagerComponents/Binary/UIntFloat.cs

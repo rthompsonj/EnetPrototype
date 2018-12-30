@@ -1,7 +1,7 @@
 using ENet;
 using NetStack.Threading;
 
-namespace Threaded
+namespace SoL.Networking
 {
     public enum CommandType
     {

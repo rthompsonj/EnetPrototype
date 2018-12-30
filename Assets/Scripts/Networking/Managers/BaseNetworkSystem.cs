@@ -5,7 +5,6 @@ using DisruptorUnity3d;
 using ENet;
 using NetStack.Compression;
 using SoL.Networking.Objects;
-using Threaded;
 using TMPro;
 using UnityEngine;
 using Event = ENet.Event;

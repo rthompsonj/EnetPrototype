@@ -1,7 +1,6 @@
 using NetStack.Serialization;
 using SoL.Networking.Managers;
 using SoL.Networking.Replication;
-using Threaded;
 using TMPro;
 using UnityEngine;
 
@@ -9,6 +8,8 @@ namespace SoL.Networking.Objects
 {
     public class NetworkedCube : NetworkedObject
     {
+        #region SERIALIZED_VARS
+        
         [SerializeField] private Renderer m_renderer = null;
         [SerializeField] private Material m_serverMat = null;
         [SerializeField] private Material m_remoteMat = null;
@@ -17,13 +18,14 @@ namespace SoL.Networking.Objects
         [SerializeField] private TextMeshPro m_text = null;
 
         [SerializeField] private Transform m_toRotate = null;
+        
+        #endregion
 
         private PlayerReplication m_playerReplication = null;
-
-        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
-
         private Vector4? m_newData = null;
 
+        #region MONO
+        
         protected override void Update()
         {
             base.Update();
@@ -38,7 +40,13 @@ namespace SoL.Networking.Objects
                 m_playerReplication.PlayerName.Value = System.Guid.NewGuid().ToString();                
             }
         }
+        
+        #endregion
 
+        #region OVERRIDES
+        
+        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
+        
         protected override void AddLayers()
         {
             m_playerReplication = new PlayerReplication();
@@ -55,19 +63,7 @@ namespace SoL.Networking.Objects
             base.Unsubscribe();            
             m_playerReplication.PlayerName.Changed -= PlayerNameOnChanged;
         }
-
-        private void PlayerNameOnChanged(string obj)
-        {
-            if (obj.Length > 5)
-            {
-                m_text.SetText(m_playerReplication.PlayerName.Value.Substring(0, 5));
-            }
-            else
-            {
-                m_text.SetText("PLAYER");
-            }
-        }
-
+        
         public override BitBuffer AddInitialState(BitBuffer outBuffer)
         {
             outBuffer = base.AddInitialState(outBuffer);
@@ -101,6 +97,42 @@ namespace SoL.Networking.Objects
         {
             m_renderer.material = m_localMat;
             gameObject.name = $"{ID} (LOCAL)";
+        }
+        
+        protected override void ProcessPacketInternal(OpCodes op, BitBuffer buffer)
+        {
+            base.ProcessPacketInternal(op, buffer);
+            switch (op)
+            {
+                case OpCodes.PositionUpdate:
+                    if (m_isLocal)
+                    {
+                        Debug.LogWarning("Receiving PositionUpdate for myself??");
+                        break;   
+                    }
+                    var pos = buffer.ReadVector3(BaseNetworkSystem.Range);
+                    var rot = buffer.ReadFloat();
+                    m_newData = new Vector4(pos.x, pos.y, pos.z, rot);
+                    break;
+                
+                default:
+                    Debug.LogWarning($"Received OpCode {op}!  Nothing to do with it...");
+                    break;                    
+            }
+        }
+        
+        #endregion
+
+        private void PlayerNameOnChanged(string obj)
+        {
+            if (obj.Length > 5)
+            {
+                m_text.SetText(m_playerReplication.PlayerName.Value.Substring(0, 5));
+            }
+            else
+            {
+                m_text.SetText("PLAYER");
+            }
         }
         
         private void LerpPositionRotation()
@@ -145,28 +177,6 @@ namespace SoL.Networking.Objects
                 m_network.AddCommandToQueue(command);
 
                 m_nextUpdate += m_updateRate;
-            }
-        }
-        
-        protected override void ProcessPacketInternal(OpCodes op, BitBuffer buffer)
-        {
-            base.ProcessPacketInternal(op, buffer);
-            switch (op)
-            {
-                case OpCodes.PositionUpdate:
-                    if (m_isLocal)
-                    {
-                        Debug.LogWarning("Receiving PositionUpdate for myself??");
-                        break;   
-                    }
-                    var pos = buffer.ReadVector3(BaseNetworkSystem.Range);
-                    var rot = buffer.ReadFloat();
-                    m_newData = new Vector4(pos.x, pos.y, pos.z, rot);
-                    break;
-                
-                default:
-                    Debug.LogWarning($"Received OpCode {op}!  Nothing to do with it...");
-                    break;                    
             }
         }
     }

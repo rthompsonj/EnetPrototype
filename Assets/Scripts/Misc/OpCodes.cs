@@ -1,4 +1,4 @@
-namespace Threaded
+namespace SoL.Networking
 {
     public enum OpCodes : ushort
     {

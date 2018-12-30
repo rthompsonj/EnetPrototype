@@ -2,7 +2,6 @@ using System;
 using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Objects;
-using Threaded;
 using UnityEngine;
 using Event = ENet.Event;
 

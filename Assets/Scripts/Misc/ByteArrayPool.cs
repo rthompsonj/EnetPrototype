@@ -1,6 +1,6 @@
 using NetStack.Buffers;
 
-namespace Threaded
+namespace SoL.Networking
 {
     public static class ByteArrayPool
     {

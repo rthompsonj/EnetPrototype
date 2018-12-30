@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
-using Threaded;
 using UnityEngine;
 
 namespace SoL.Networking.Replication
@@ -131,10 +129,8 @@ namespace SoL.Networking.Replication
             }
         }
 
-        protected bool CanUpdate()
+        private bool CanUpdate()
         {
-            //var peer = m_isLocal ? ClientNetworkSystem.MyPeer : Peer;
-            //return peer.IsSet && Time.time > m_nextUpdate;
             return Time.time > m_nextUpdate;
         }
     }

@@ -2,7 +2,6 @@ using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
 using SoL.Networking.Replication;
-using Threaded;
 using UnityEngine;
 
 namespace SoL.Networking.Objects
@@ -11,21 +10,39 @@ namespace SoL.Networking.Objects
     {
         //TODO: uint index for any networked object.  this includes ones that are NOT peers.
         
-        protected readonly BitBuffer m_buffer = new BitBuffer(128);
-
-        protected abstract IReplicationLayer m_replicationLayer { get; }
+        #region ABSTRACT_VIRTUAL        
         
-        protected BaseNetworkSystem m_network = null;
-
+        protected abstract IReplicationLayer m_replicationLayer { get; }
+        protected virtual void Subscribe() { }
+        protected virtual void Unsubscribe() { }
+        protected virtual void AddLayers() { }
+        protected virtual void ProcessPacketInternal(OpCodes op, BitBuffer buffer) { }
+        protected virtual void OnStartServer() { }
+        protected virtual void OnStartClient() { }
+        protected virtual void OnStartLocalClient() { }
+        
+        #endregion
+        
+        #region PROPERTIES
+        
         public Peer Peer { get; private set; }
         public uint ID { get; private set; }
-
+        
+        #endregion
+        
+        #region VARS
+        
         [SerializeField] protected float m_updateRate = 0.1f;
         protected float m_nextUpdate = 0f;
+        
+        protected readonly BitBuffer m_buffer = new BitBuffer(128);
+        protected BaseNetworkSystem m_network = null;
         
         protected bool m_isServer = false;
         protected bool m_isClient = false;
         protected bool m_isLocal = false;
+        
+        #endregion
         
         #region MONO
         
@@ -50,10 +67,7 @@ namespace SoL.Networking.Objects
         
         #endregion
         
-        protected virtual void Subscribe() { }
-        protected virtual void Unsubscribe() { }
-
-        protected virtual void AddLayers() { }
+        #region INIT
 
         public void ServerInitialize(BaseNetworkSystem network, Peer localPeer)
         {
@@ -90,6 +104,8 @@ namespace SoL.Networking.Objects
         {
             m_replicationLayer?.ReadAllSyncData(initBuffer);
         }
+        
+        #endregion
 
         public void ProcessPacket(OpCodes op, BitBuffer inBuffer)
         {
@@ -110,10 +126,5 @@ namespace SoL.Networking.Objects
             var peer = m_isLocal ? ClientNetworkSystem.MyPeer : Peer;
             return peer.IsSet && Time.time > m_nextUpdate;
         }
-        
-        protected virtual void ProcessPacketInternal(OpCodes op, BitBuffer buffer) { }
-        protected virtual void OnStartServer() { }
-        protected virtual void OnStartClient() { }
-        protected virtual void OnStartLocalClient() { }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Text;
 using NetStack.Serialization;
-using Threaded;
 
 namespace SoL.Networking.Replication
 {

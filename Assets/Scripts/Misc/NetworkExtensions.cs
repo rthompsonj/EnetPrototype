@@ -5,7 +5,7 @@ using SoL.Networking.Objects;
 using SoL.Networking.Replication;
 using UnityEngine;
 
-namespace Threaded
+namespace SoL.Networking
 {
     public struct PacketHeader
     {
