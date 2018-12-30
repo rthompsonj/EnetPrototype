@@ -119,11 +119,6 @@ namespace SoL.Networking
                 buffer.ReadUInt());
             return BoundedRange.Decompress(compressed, range);
         }
-
-        public static BitBuffer AddEntitySyncData(this BitBuffer buffer, NetworkedObject nobj)
-        {
-            return nobj.AddInitialState(buffer);
-        }
         
         public static BitBuffer AddInitialState(this BitBuffer buffer, NetworkedObject nobj)
         {
