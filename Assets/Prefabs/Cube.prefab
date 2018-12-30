@@ -9,10 +9,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4379016114378548}
-  - component: {fileID: 114193330230074418}
   - component: {fileID: 2129597563089855454}
+  - component: {fileID: 958550784812433378}
   m_Layer: 0
-  m_Name: Player
+  m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -34,24 +34,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &114193330230074418
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1207754226127390}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c15a65bc5e7b4485b6cfd838bd6bae51, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_text: {fileID: 92959887665780219}
-  m_clientRemoteMat: {fileID: 2100000, guid: 37320bdce04eb4fd6876e3c46bd14dbf, type: 2}
-  m_clientLocalMat: {fileID: 2100000, guid: ae3c0ff9b4a064c72a48af0001a64116, type: 2}
-  m_serverMat: {fileID: 2100000, guid: 9ce89cebf326c443b81b8cc52825eab4, type: 2}
-  m_renderer: {fileID: 6224464332904697764}
-  stringIterations: 1
 --- !u!65 &2129597563089855454
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -65,6 +47,25 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &958550784812433378
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207754226127390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a7b5978bbd2483e8c4f388c6d88f4fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_updateRate: 0.1
+  m_renderer: {fileID: 6224464332904697764}
+  m_serverMat: {fileID: 2100000, guid: 9ce89cebf326c443b81b8cc52825eab4, type: 2}
+  m_remoteMat: {fileID: 2100000, guid: 37320bdce04eb4fd6876e3c46bd14dbf, type: 2}
+  m_localMat: {fileID: 2100000, guid: ae3c0ff9b4a064c72a48af0001a64116, type: 2}
+  m_text: {fileID: 92959887665780219}
+  m_toRotate: {fileID: 4605112225065375610}
 --- !u!1 &6491837824940048066
 GameObject:
   m_ObjectHideFlags: 0

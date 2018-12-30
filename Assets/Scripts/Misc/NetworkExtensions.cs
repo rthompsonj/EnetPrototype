@@ -1,7 +1,8 @@
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
-using NextSimple;
+using SoL.Networking.Objects;
+using SoL.Networking.Replication;
 using UnityEngine;
 
 namespace Threaded
@@ -119,9 +120,14 @@ namespace Threaded
             return BoundedRange.Decompress(compressed, range);
         }
 
-        public static BitBuffer AddEntitySyncData(this BitBuffer buffer, BaseEntity entity)
+        public static BitBuffer AddEntitySyncData(this BitBuffer buffer, NetworkedObject nobj)
         {
-            return entity.AddAllSyncData(buffer);
+            return nobj.AddInitialState(buffer);
+        }
+        
+        public static BitBuffer AddInitialState(this BitBuffer buffer, NetworkedObject nobj)
+        {
+            return nobj.AddInitialState(buffer);
         }
     }
 }

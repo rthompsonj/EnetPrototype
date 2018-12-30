@@ -1,21 +1,18 @@
 using System;
 using ENet;
 using NetStack.Serialization;
-using NextSimple;
+using SoL.Networking.Objects;
+using Threaded;
 using UnityEngine;
 using Event = ENet.Event;
 
-namespace Threaded
+namespace SoL.Networking.Managers
 {
     public class ClientNetworkSystem : BaseNetworkSystem
-    {
-        public Peer Peer
-        {
-            get { return m_peer;}
-            private set { m_peer = value; }            
-        }
-        
+    {        
         private BitBuffer m_buffer = new BitBuffer(128);
+
+        public static Peer MyPeer;
         
         #region MONO
         
@@ -55,7 +52,8 @@ namespace Threaded
                 addy.SetHost(command.Host);
         
                 host.Create();
-                Peer = host.Connect(addy, command.ChannelCount);
+                m_peer = host.Connect(addy, command.ChannelCount);
+                MyPeer = m_peer;
                 Debug.Log($"Client started on port: {command.Port} with {command.ChannelCount} channels.");
             }
             catch (Exception ex)
@@ -111,19 +109,13 @@ namespace Threaded
             var header = m_buffer.GetEntityHeader();
             var op = header.OpCode;
             var id = header.ID;
-            
-            BaseEntity entity = null;
-            Vector3 pos;
-            float h;
+
+            NetworkedObject nobj = null;
 
             switch (op)
             {
                 case OpCodes.Spawn:
-                    entity = SpawnPlayer(id, buffer);
-                    if (channel == 0)
-                    {
-                        entity.AssumeOwnership();
-                    }
+                    nobj = SpawnNetworkedObject(id, buffer);
                     break;
                 
                 case OpCodes.BulkSpawn:
@@ -131,49 +123,41 @@ namespace Threaded
                     for (int i = 0; i < cnt; i++)
                     {
                         header = m_buffer.GetEntityHeader();
-                        SpawnPlayer(header.ID, buffer);
+                        SpawnNetworkedObject(header.ID, buffer);
                     }
                     break;
 		        
                 case OpCodes.Destroy:
-                    if (m_entityDict.TryGetValue(id, out entity) && entity.Id == id)
+                    if (m_actorDict.TryGetValue(id, out nobj) && nobj.ID == id)
                     {
-                        m_entityDict.Remove(id);
-                        m_entities.Remove(entity);
-                        Destroy(entity.gameObject);                        
+                        m_actorDict.Remove(id);
+                        m_actors.Remove(nobj);
+                        Destroy(nobj.gameObject);                        
                     }
                     break;
 		        
                 case OpCodes.PositionUpdate:
-                    if (m_entityDict.TryGetValue(id, out entity))
+                case OpCodes.SyncUpdate:
+                    if (m_actorDict.TryGetValue(id, out nobj))
                     {
-                        pos = buffer.ReadVector3(SharedStuff.Instance.Range);
-                        h = buffer.ReadFloat();
-
-                        entity.m_newPos = new Vector4(pos.x, pos.y, pos.z, h);
+                        nobj.ProcessPacket(op, buffer);
                     }
                     else
                     {
                         Debug.LogWarning($"Unable to locate entity ID: {id}");
                     }
                     break;
-                
-                case OpCodes.SyncUpdate:
-                    if (m_entityDict.TryGetValue(id, out entity))
-                    {
-                        entity.ProcessSyncUpdate(buffer);
-                    }
-                    break;
             }
         }
 
-        private BaseEntity SpawnPlayer(uint id, BitBuffer buffer)
+        private NetworkedObject SpawnNetworkedObject(uint id, BitBuffer buffer)
         {
-            var entity = SharedStuff.Instance.SpawnPlayer();
-            entity.Initialize(id, Peer, buffer);
-            m_entityDict.Add(id, entity);
-            m_entities.Add(entity);
-            return entity;
+            var go = Instantiate(m_playerGo);
+            var nobj = go.GetComponent<NetworkedObject>();
+            nobj.ClientInitialize(this, id, buffer);
+            m_actorDict.Add(id, nobj);
+            m_actors.Add(nobj);
+            return nobj;
         }
         
         #endregion

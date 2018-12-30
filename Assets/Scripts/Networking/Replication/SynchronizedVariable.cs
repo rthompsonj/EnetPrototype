@@ -1,8 +1,9 @@
 using System;
 using System.Text;
 using NetStack.Serialization;
+using Threaded;
 
-namespace Threaded
+namespace SoL.Networking.Replication
 {
     public interface ISynchronizedVariable
     {

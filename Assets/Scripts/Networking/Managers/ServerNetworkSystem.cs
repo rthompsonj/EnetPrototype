@@ -1,11 +1,12 @@
 using System;
 using ENet;
 using NetStack.Serialization;
-using NextSimple;
+using SoL.Networking.Objects;
+using Threaded;
 using UnityEngine;
 using Event = ENet.Event;
 
-namespace Threaded
+namespace SoL.Networking.Managers
 {
     public class ServerNetworkSystem : BaseNetworkSystem
     {
@@ -63,11 +64,11 @@ namespace Threaded
         protected override void Func_StopHost(Host host, GameCommand command)
         {
             Debug.Log("STOPPING SERVER FROM NETWORK THREAD");
-            for (int i = 0; i < m_entities.Count; i++)
+            for (int i = 0; i < m_actors.Count; i++)
             {
-                if (m_entities[i].Peer.IsSet)
+                if (m_actors[i].Peer.IsSet)
                 {
-                    m_entities[i].Peer.Disconnect(0);
+                    m_actors[i].Peer.Disconnect(0);
                 }
             }
             host.Flush();
@@ -89,11 +90,11 @@ namespace Threaded
         
         protected override void Func_BroadcastOthers(Host host, GameCommand command)
         {
-            for (int i = 0; i < m_entities.Count; i++)
+            for (int i = 0; i < m_actors.Count; i++)
             {
-                if (m_entities[i].Peer.ID != command.Source.ID && m_entities[i].Peer.IsSet)
+                if (m_actors[i].Peer.ID != command.Source.ID && m_actors[i].Peer.IsSet)
                 {                    
-                    m_entities[i].Peer.Send(command.Channel, ref command.Packet);
+                    m_actors[i].Peer.Send(command.Channel, ref command.Packet);
                 }
             }
         }
@@ -108,19 +109,19 @@ namespace Threaded
         {
             Debug.Log($"Client disconnected - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}  Reason: {netEvent.Data}");
             Peer peer = netEvent.Peer;
-            BaseEntity entity = null;
+            NetworkedObject nobj = null;
 
-            if (m_entityDict.TryGetValue(peer.ID, out entity))
+            if (m_actorDict.TryGetValue(peer.ID, out nobj))
             {
                 uint id = peer.ID;
 
-                m_entityDict.Remove(peer.ID);
-                m_entities.Remove(entity);
+                m_actorDict.Remove(peer.ID);
+                m_actors.Remove(nobj);
                     
-                Destroy(entity.gameObject);
+                Destroy(nobj.gameObject);
 
                 // notify everyone else
-                if (m_entities.Count > 0)
+                if (m_actors.Count > 0)
                 {
                     m_buffer.AddEntityHeader(peer, OpCodes.Destroy);
                     var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
@@ -161,13 +162,10 @@ namespace Threaded
 
                     m_commandQueue.Enqueue(command);
 
-                    BaseEntity entity = null;
-                    if (m_entityDict.TryGetValue(netEvent.Peer.ID, out entity))
+                    NetworkedObject nobj = null;
+                    if (m_actorDict.TryGetValue(netEvent.Peer.ID, out nobj))
                     {
-                        var pos = buffer.ReadVector3(SharedStuff.Instance.Range);
-                        var h = buffer.ReadFloat();
-                        entity.gameObject.transform.position = pos;
-                        entity.Renderer.gameObject.transform.rotation = Quaternion.Euler(new Vector3(0f, h, 0f));
+                        nobj.ProcessPacket(op, buffer);
                     }
                     break;
                 
@@ -182,13 +180,12 @@ namespace Threaded
         
         private void SpawnRemotePlayer(Peer peer)
         {
-            BaseEntity entity = SharedStuff.Instance.SpawnPlayer();
-            entity.Initialize(peer, peer.ID);
+            var go = Instantiate(m_playerGo);
+            NetworkedObject nobj = go.GetComponent<NetworkedObject>();
+            nobj.ServerInitialize(this, peer);
 
             m_buffer.AddEntityHeader(peer, OpCodes.Spawn);
-            m_buffer.AddVector3(entity.gameObject.transform.position, SharedStuff.Instance.Range);
-            m_buffer.AddFloat(entity.gameObject.transform.eulerAngles.y);
-            m_buffer.AddEntitySyncData(entity);
+            m_buffer.AddInitialState(nobj);
             Packet spawnPlayerPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
             var spawnPlayerCommand = GameCommandPool.GetGameCommand();
@@ -237,16 +234,14 @@ namespace Threaded
             
             // one large packet
             m_buffer.AddEntityHeader(peer, OpCodes.BulkSpawn);
-            m_buffer.AddInt(m_entities.Count);
-            for (int i = 0; i < m_entities.Count; i++)
+            m_buffer.AddInt(m_actors.Count);
+            for (int i = 0; i < m_actors.Count; i++)
             {
-                if (m_entities[i].Peer.ID == peer.ID)
+                if (m_actors[i].Peer.ID == peer.ID)
                     continue;
 
-                m_buffer.AddEntityHeader(m_entities[i].Peer, OpCodes.Spawn, false);
-                m_buffer.AddVector3(m_entities[i].gameObject.transform.position, SharedStuff.Instance.Range);
-                m_buffer.AddFloat(m_entities[i].gameObject.transform.eulerAngles.y);
-                m_buffer.AddEntitySyncData(m_entities[i]);
+                m_buffer.AddEntityHeader(m_actors[i].Peer, OpCodes.Spawn, false);
+                m_buffer.AddInitialState(m_actors[i]);
             }
             var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
             var spawnOthersCommand = GameCommandPool.GetGameCommand();
@@ -259,8 +254,8 @@ namespace Threaded
             
             m_commandQueue.Enqueue(spawnOthersCommand);
 
-            m_entityDict.Add(peer.ID, entity);
-            m_entities.Add(entity);
+            m_actorDict.Add(peer.ID, nobj);
+            m_actors.Add(nobj);
             
             Debug.Log($"Sent SpawnOthersPacket of size {packetSize.ToString()}");
         }

@@ -3,19 +3,33 @@ using System.Text;
 using System.Threading;
 using DisruptorUnity3d;
 using ENet;
-using NextSimple;
+using NetStack.Compression;
+using SoL.Networking.Objects;
+using Threaded;
 using TMPro;
 using UnityEngine;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
 
-namespace Threaded
+namespace SoL.Networking.Managers
 {
     public abstract class BaseNetworkSystem : MonoBehaviour
     {
+        public const float kMaxRange = 5f;
+        
+        public static BoundedRange[] Range = new BoundedRange[]
+        {
+            new BoundedRange(-kMaxRange, kMaxRange, 0.05f),
+            new BoundedRange(-kMaxRange, kMaxRange, 0.05f),
+            new BoundedRange(-kMaxRange, kMaxRange, 0.05f)
+        };
+        
+        [SerializeField] protected GameObject m_playerGo = null;
         [SerializeField] private TextMeshProUGUI m_stats = null;
         private Host m_host;
         protected Peer m_peer;
+        
+        public Peer Peer => m_peer;
 
         [SerializeField] protected string m_targetHost = "127.0.0.1";
         [SerializeField] protected ushort m_targetPort = 9900;
@@ -43,8 +57,8 @@ namespace Threaded
         protected readonly RingBuffer<Event> m_logicEventQueue = new RingBuffer<Event>(64);
         protected readonly RingBuffer<Event> m_transportEventQueue = new RingBuffer<Event>(64);
         
-        protected readonly List<BaseEntity> m_entities = new List<BaseEntity>();
-        protected readonly Dictionary<uint, BaseEntity> m_entityDict = new Dictionary<uint, BaseEntity>();
+        protected readonly List<NetworkedObject> m_actors = new List<NetworkedObject>();
+        protected readonly Dictionary<uint, NetworkedObject> m_actorDict = new Dictionary<uint, NetworkedObject>();
         
         #region MONO
         
