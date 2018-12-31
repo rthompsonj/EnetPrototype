@@ -7,6 +7,7 @@ using NetStack.Compression;
 using SoL.Networking.Objects;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Profiling;
 using Event = ENet.Event;
 using EventType = ENet.EventType;
 
@@ -103,7 +104,9 @@ namespace SoL.Networking.Managers
                 }
             }
             
+            Profiler.BeginSample("Update Stats");
             UpdateStats();
+            Profiler.EndSample();
         }
         
         #endregion

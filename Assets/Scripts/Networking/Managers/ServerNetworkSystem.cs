@@ -3,6 +3,7 @@ using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Objects;
 using UnityEngine;
+using UnityEngine.Profiling;
 using Event = ENet.Event;
 
 namespace SoL.Networking.Managers
@@ -135,8 +136,9 @@ namespace SoL.Networking.Managers
 
         protected override void ProcessPacket(Event netEvent)
         {
+            Profiler.BeginSample("Process Packet");
             //Debug.Log($"Packet received from - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}, Channel ID: {netEvent.ChannelID}, Data Length: {netEvent.Packet.Length}");
-
+            
             m_buffer = netEvent.Packet.GetBufferFromPacket(m_buffer);
             var buffer = m_buffer;
             var header = buffer.GetEntityHeader();
@@ -146,13 +148,14 @@ namespace SoL.Networking.Managers
             if (netEvent.Peer.ID != id)
             {
                 Debug.LogError($"ID Mismatch! {netEvent.Peer.ID} vs. {id}");
+                Profiler.EndSample();
                 return;
             }
 
             switch (op)
             {
                 case OpCodes.PositionUpdate:
-
+                    Profiler.BeginSample("Process Packet - Position Update");
                     var command = GameCommandPool.GetGameCommand();
                     command.Type = CommandType.BroadcastOthers;
                     command.Source = netEvent.Peer;
@@ -166,12 +169,14 @@ namespace SoL.Networking.Managers
                     {
                         nobj.ProcessPacket(op, buffer);
                     }
+                    Profiler.EndSample();
                     break;
                 
                 default:
                     netEvent.Packet.Dispose();
                     break;
             }
+            Profiler.EndSample();
         }
         
         #endregion
