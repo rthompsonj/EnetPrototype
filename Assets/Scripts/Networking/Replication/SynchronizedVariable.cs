@@ -34,6 +34,16 @@ namespace SoL.Networking.Replication
             }
         }
 
+        protected SynchronizedVariable()
+        {
+            m_value = default(T);
+        }
+
+        protected SynchronizedVariable(T initial)
+        {
+            m_value = initial;
+        }
+
         public void ResetDirty()
         {
             Dirty = false;
@@ -45,6 +55,9 @@ namespace SoL.Networking.Replication
 
     public class SynchronizedInt : SynchronizedVariable<int>
     {
+        public SynchronizedInt() { }
+        public SynchronizedInt(int initial) : base(initial) { }
+        
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddInt(Value);
@@ -60,6 +73,9 @@ namespace SoL.Networking.Replication
     
     public class SynchronizedUInt : SynchronizedVariable<uint>
     {
+        public SynchronizedUInt() { }
+        public SynchronizedUInt(uint initial) : base(initial) { }
+        
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddUInt(Value);
@@ -75,6 +91,9 @@ namespace SoL.Networking.Replication
 
     public class SynchronizedFloat : SynchronizedVariable<float>
     {
+        public SynchronizedFloat() { }
+        public SynchronizedFloat(float initial) : base(initial) { }
+        
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             buffer.AddFloat(Value);
@@ -90,6 +109,9 @@ namespace SoL.Networking.Replication
 
     public class SynchronizedString : SynchronizedVariable<string>
     {
+        public SynchronizedString() { }
+        public SynchronizedString(string initial) : base(initial) { }
+        
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             // cannot send nulls
@@ -114,6 +136,9 @@ namespace SoL.Networking.Replication
     /// </summary>
     public class SynchronizedASCII : SynchronizedVariable<string>
     {
+        public SynchronizedASCII() { }
+        public SynchronizedASCII(string initial) : base(initial) { }
+        
         public override BitBuffer PackVariable(BitBuffer buffer)
         {
             // cannot send nulls
