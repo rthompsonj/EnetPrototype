@@ -98,6 +98,10 @@ namespace SoL.Networking.Managers
         protected override void Disconnect(Event netEvent)
         {
             Debug.Log("Disconnect detected!");
+            if (Application.isEditor == false)
+            {
+                Application.Quit();
+            }
         }
 
         protected override void ProcessPacket(Event netEvent)
