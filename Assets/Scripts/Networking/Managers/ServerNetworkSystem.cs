@@ -64,11 +64,11 @@ namespace SoL.Networking.Managers
         protected override void Func_StopHost(Host host, GameCommand command)
         {
             Debug.Log("STOPPING SERVER FROM NETWORK THREAD");
-            for (int i = 0; i < m_actors.Count; i++)
+            for (int i = 0; i < m_peers.Count; i++)
             {
-                if (m_actors[i].Peer.IsSet)
+                if (m_peers[i].Peer.IsSet)
                 {
-                    m_actors[i].Peer.Disconnect(0);
+                    m_peers[i].Peer.Disconnect(0);
                 }
             }
             host.Flush();
@@ -90,11 +90,11 @@ namespace SoL.Networking.Managers
         
         protected override void Func_BroadcastOthers(Host host, GameCommand command)
         {
-            for (int i = 0; i < m_actors.Count; i++)
+            for (int i = 0; i < m_peers.Count; i++)
             {
-                if (m_actors[i].Peer.ID != command.Source.ID && m_actors[i].Peer.IsSet)
+                if (m_peers[i].Peer.ID != command.Source.ID && m_peers[i].Peer.IsSet)
                 {                    
-                    m_actors[i].Peer.Send(command.Channel, ref command.Packet);
+                    m_peers[i].Peer.Send(command.Channel, ref command.Packet);
                 }
             }
         }
@@ -111,17 +111,16 @@ namespace SoL.Networking.Managers
             Peer peer = netEvent.Peer;
             NetworkedObject nobj = null;
 
-            if (m_actorDict.TryGetValue(peer.ID, out nobj))
+            if (m_peers.TryGetValue(peer.ID, out nobj))
             {
                 uint id = peer.ID;
 
-                m_actorDict.Remove(peer.ID);
-                m_actors.Remove(nobj);
+                m_peers.Remove(peer.ID);
                     
                 Destroy(nobj.gameObject);
 
                 // notify everyone else
-                if (m_actors.Count > 0)
+                if (m_peers.Count > 0)
                 {
                     m_buffer.AddEntityHeader(peer, OpCodes.Destroy);
                     var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
@@ -165,7 +164,7 @@ namespace SoL.Networking.Managers
                     m_commandQueue.Enqueue(command);
 
                     NetworkedObject nobj = null;
-                    if (m_actorDict.TryGetValue(netEvent.Peer.ID, out nobj))
+                    if (m_peers.TryGetValue(netEvent.Peer.ID, out nobj))
                     {
                         nobj.ProcessPacket(op, buffer);
                     }
@@ -238,14 +237,14 @@ namespace SoL.Networking.Managers
             
             // one large packet
             m_buffer.AddEntityHeader(peer, OpCodes.BulkSpawn);
-            m_buffer.AddInt(m_actors.Count);
-            for (int i = 0; i < m_actors.Count; i++)
+            m_buffer.AddInt(m_peers.Count);
+            for (int i = 0; i < m_peers.Count; i++)
             {
-                if (m_actors[i].Peer.ID == peer.ID)
+                if (m_peers[i].Peer.ID == peer.ID)
                     continue;
 
-                m_buffer.AddEntityHeader(m_actors[i].Peer, OpCodes.Spawn, false);
-                m_buffer.AddInitialState(m_actors[i]);
+                m_buffer.AddEntityHeader(m_peers[i].Peer, OpCodes.Spawn, false);
+                m_buffer.AddInitialState(m_peers[i]);
             }
             var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
             var spawnOthersCommand = GameCommandPool.GetGameCommand();
@@ -258,8 +257,7 @@ namespace SoL.Networking.Managers
             
             m_commandQueue.Enqueue(spawnOthersCommand);
 
-            m_actorDict.Add(peer.ID, nobj);
-            m_actors.Add(nobj);
+            m_peers.Add(peer.ID, nobj);
             
             Debug.Log($"Sent SpawnOthersPacket of size {packetSize.ToString()}");
         }

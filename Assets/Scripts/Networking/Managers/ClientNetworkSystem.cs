@@ -131,17 +131,16 @@ namespace SoL.Networking.Managers
                     break;
 		        
                 case OpCodes.Destroy:
-                    if (m_actorDict.TryGetValue(id, out nobj) && nobj.ID == id)
+                    if (m_peers.TryGetValue(id, out nobj) && nobj.ID == id)
                     {
-                        m_actorDict.Remove(id);
-                        m_actors.Remove(nobj);
+                        m_peers.Remove(id);
                         Destroy(nobj.gameObject);                        
                     }
                     break;
 		        
                 case OpCodes.PositionUpdate:
                 case OpCodes.SyncUpdate:
-                    if (m_actorDict.TryGetValue(id, out nobj))
+                    if (m_peers.TryGetValue(id, out nobj))
                     {
                         nobj.ProcessPacket(op, buffer);
                     }
@@ -158,8 +157,7 @@ namespace SoL.Networking.Managers
             var go = Instantiate(m_playerGo);
             var nobj = go.GetComponent<NetworkedObject>();
             nobj.ClientInitialize(this, id, buffer);
-            m_actorDict.Add(id, nobj);
-            m_actors.Add(nobj);
+            m_peers.Add(id, nobj);
             return nobj;
         }
         

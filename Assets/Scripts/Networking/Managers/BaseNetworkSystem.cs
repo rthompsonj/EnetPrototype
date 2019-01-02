@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading;
 using DisruptorUnity3d;
 using ENet;
+using Misc;
 using NetStack.Compression;
 using SoL.Networking.Objects;
 using TMPro;
@@ -57,8 +58,7 @@ namespace SoL.Networking.Managers
         protected readonly RingBuffer<Event> m_logicEventQueue = new RingBuffer<Event>(64);
         protected readonly RingBuffer<Event> m_transportEventQueue = new RingBuffer<Event>(64);
         
-        protected readonly List<NetworkedObject> m_actors = new List<NetworkedObject>();
-        protected readonly Dictionary<uint, NetworkedObject> m_actorDict = new Dictionary<uint, NetworkedObject>();
+        protected readonly ListDictCollection<uint, NetworkedObject> m_peers = new ListDictCollection<uint, NetworkedObject>(true);        
         
         #region MONO
         
