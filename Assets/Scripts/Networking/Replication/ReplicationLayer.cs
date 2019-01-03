@@ -86,6 +86,7 @@ namespace SoL.Networking.Replication
             var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
             var command = GameCommandPool.GetGameCommand();
             command.Type = CommandType.BroadcastAll;
+            command.Source = m_peer;
             command.Packet = packet;
             command.Channel = 0;
 

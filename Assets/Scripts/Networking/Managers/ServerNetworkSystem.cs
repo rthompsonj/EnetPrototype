@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using ENet;
+using Misc;
 using NetStack.Serialization;
 using SoL.Networking.Objects;
+using Supercluster.KDTree;
 using UnityEngine;
 using UnityEngine.Profiling;
 using Event = ENet.Event;
@@ -11,6 +14,8 @@ namespace SoL.Networking.Managers
     public class ServerNetworkSystem : BaseNetworkSystem
     {
         private BitBuffer m_buffer = new BitBuffer(128);
+
+        public ListDictCollection<uint, NetworkedObject> Peers => m_peers;
         
         #region MONO
         
@@ -85,11 +90,13 @@ namespace SoL.Networking.Managers
         
         protected override void Func_BroadcastAll(Host host, GameCommand command)
         {
+            // only broadcast to observers + self
             host.Broadcast(command.Channel, ref command.Packet);
         }
         
         protected override void Func_BroadcastOthers(Host host, GameCommand command)
         {
+            // only include observers - self
             for (int i = 0; i < m_peers.Count; i++)
             {
                 if (m_peers[i].Peer.ID != command.Source.ID && m_peers[i].Peer.IsSet)
@@ -166,7 +173,7 @@ namespace SoL.Networking.Managers
                     NetworkedObject nobj = null;
                     if (m_peers.TryGetValue(netEvent.Peer.ID, out nobj))
                     {
-                        nobj.ProcessPacket(op, buffer);
+                        //nobj.ProcessPacket(op, buffer);
                     }
                     Profiler.EndSample();
                     break;
@@ -198,6 +205,10 @@ namespace SoL.Networking.Managers
             spawnPlayerCommand.Packet = spawnPlayerPacket;
 
             m_commandQueue.Enqueue(spawnPlayerCommand);
+
+            m_peers.Add(peer.ID, nobj);
+
+            return;
 
             var spawnPlayerForOthersCommand = GameCommandPool.GetGameCommand();
             spawnPlayerForOthersCommand.Type = CommandType.BroadcastOthers;
@@ -260,6 +271,38 @@ namespace SoL.Networking.Managers
             m_peers.Add(peer.ID, nobj);
             
             Debug.Log($"Sent SpawnOthersPacket of size {packetSize.ToString()}");
+        }
+
+        public void UpdateObservers(NetworkedObject observer)
+        {
+            for (int i = 0; i < observer.m_observersToRemove.Count; i++)
+            {
+                var observerToRemove = m_peers[observer.m_observersToRemove[i]];
+                m_buffer.AddEntityHeader(observerToRemove.Peer, OpCodes.Destroy);
+                var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.Send;
+                command.Packet = packet;
+                command.Channel = 1;
+                command.Target = observer.Peer;
+                m_commandQueue.Enqueue(command);   
+                Debug.Log($"Sending Destroy for ID:{observerToRemove.Peer.ID}");
+            }
+
+            for (int i = 0; i < observer.m_observersToAdd.Count; i++)
+            {
+                var observerToAdd = m_peers[observer.m_observersToAdd[i]];
+                m_buffer.AddEntityHeader(observerToAdd.Peer, OpCodes.Spawn);
+                m_buffer.AddInitialState(observerToAdd);
+                var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.Send;
+                command.Packet = packet;
+                command.Channel = 1;
+                command.Target = observer.Peer;
+                m_commandQueue.Enqueue(command);    
+                Debug.Log($"Sending Spawn for ID:{observerToAdd.Peer.ID}");
+            }
         }
     }
 }

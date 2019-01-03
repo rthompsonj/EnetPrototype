@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
@@ -9,6 +10,10 @@ namespace SoL.Networking.Objects
     public abstract class NetworkedObject : MonoBehaviour
     {
         //TODO: uint index for any networked object.  this includes ones that are NOT peers.
+        
+        private readonly HashSet<NetworkedObject> m_observers = new HashSet<NetworkedObject>(); 
+        public readonly List<uint> m_observersToRemove = new List<uint>();
+        public readonly List<uint> m_observersToAdd = new List<uint>();
         
         #region ABSTRACT_VIRTUAL        
         
@@ -125,6 +130,34 @@ namespace SoL.Networking.Objects
         {
             var peer = m_isLocal ? ClientNetworkSystem.MyPeer : Peer;
             return peer.IsSet && Time.time > m_nextUpdate;
+        }
+
+        public void RebuildObservers(HashSet<NetworkedObject> m_newObservers)
+        {
+            m_observersToAdd.Clear();
+            m_observersToRemove.Clear();
+            
+            foreach (var old in m_observers)
+            {
+                if (m_newObservers.Contains(old) == false)
+                {
+                    m_observersToRemove.Add(old.ID);
+                }
+            }
+
+            foreach (var n in m_newObservers)
+            {
+                if (m_observers.Contains(n) == false)
+                {
+                    m_observersToAdd.Add(n.ID);
+                }
+            }
+
+            m_observers.Clear();
+            foreach (var o in m_newObservers)
+            {
+                m_observers.Add(o);
+            }
         }
     }
 }
