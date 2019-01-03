@@ -37,7 +37,46 @@ namespace SoL.Networking.Managers
             };
             m_commandQueue.Enqueue(command);
         }
-        
+
+        protected override void Update()
+        {
+            base.Update();
+
+            for (int i = 0; i < m_peers.Count; i++)
+            {
+                //TODO: this may always return 1 as the box is inside of the triggers?
+                int observers = m_peers[i].Proximity.GetUpdateCount();
+                if (observers <= 0)
+                {
+                    continue;
+                }
+
+                var peerGroup = PeerArrayPool.GetArray(observers);
+                int cnt = 0;
+                foreach (var obs in m_peers[i].Proximity.GetUpdates())
+                {
+                    peerGroup[cnt] = obs.Peer;
+                    cnt += 1;
+                }
+
+                if (cnt <= 0)
+                {
+                    continue;   
+                }
+
+                m_buffer.AddEntityHeader(m_peers[i].Peer, OpCodes.PositionUpdate);
+                m_buffer.AddVector3(m_peers[i].gameObject.transform.position, Range);
+                m_buffer.AddFloat(0f);  //TODO: lazy
+                var packet = m_buffer.GetPacketFromBuffer(PacketFlags.None);
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.BroadcastGroup;
+                command.Packet = packet;
+                command.TargetGroup = peerGroup;
+                command.Channel = 2;
+                m_commandQueue.Enqueue(command);
+            }
+        }
+
         #endregion
         
         #region OVERRIDES
@@ -98,6 +137,19 @@ namespace SoL.Networking.Managers
                 }
             }
         }
+        
+        protected override void Func_BroadcastGroup(Host host, GameCommand command)
+        {
+            //TODO: stop-gap solution until dlls are updated with recent ENET changes.
+            for (int i = 0; i < command.TargetGroup.Length; i++)
+            {
+                if (command.TargetGroup[i].IsSet)
+                {
+                    command.TargetGroup[i].Send(command.Channel, ref command.Packet);
+                }
+            }
+            PeerArrayPool.ReturnArray(command.TargetGroup);
+        }
 
         protected override void Connect(Event netEvent)
         {
@@ -155,6 +207,7 @@ namespace SoL.Networking.Managers
             {
                 case OpCodes.PositionUpdate:
                     Profiler.BeginSample("Process Packet - Position Update");
+                    /*
                     var command = GameCommandPool.GetGameCommand();
                     command.Type = CommandType.BroadcastOthers;
                     command.Source = netEvent.Peer;
@@ -162,6 +215,7 @@ namespace SoL.Networking.Managers
                     command.Packet = netEvent.Packet;
 
                     m_commandQueue.Enqueue(command);
+                    */
 
                     NetworkedObject nobj = null;
                     if (m_peers.TryGetValue(netEvent.Peer.ID, out nobj))

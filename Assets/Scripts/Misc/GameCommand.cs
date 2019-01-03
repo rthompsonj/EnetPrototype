@@ -10,7 +10,8 @@ namespace SoL.Networking
         StopHost,
         Send,
         BroadcastAll,
-        BroadcastOthers
+        BroadcastOthers,
+        BroadcastGroup
     }
     
     public class GameCommand
@@ -25,6 +26,7 @@ namespace SoL.Networking
 
         public Peer Source;
         public Peer Target;
+        public Peer[] TargetGroup;
 
         public Packet Packet;
         public byte Channel;
@@ -39,6 +41,7 @@ namespace SoL.Networking
             
             Source = default(Peer);
             Target = default(Peer);
+            TargetGroup = null;
             
             Packet = default(Packet);
             Channel = 0;

@@ -89,6 +89,11 @@ namespace SoL.Networking.Managers
         {
 
         }
+        
+        protected override void Func_BroadcastGroup(Host host, GameCommand command)
+        {
+
+        }
 
         protected override void Connect(Event netEvent)
         {

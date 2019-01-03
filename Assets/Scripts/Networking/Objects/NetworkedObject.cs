@@ -1,6 +1,7 @@
 using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
+using SoL.Networking.Proximity;
 using SoL.Networking.Replication;
 using UnityEngine;
 
@@ -27,11 +28,14 @@ namespace SoL.Networking.Objects
         
         public Peer Peer { get; private set; }
         public uint ID { get; private set; }
+
+        public ProximityCoordinator Proximity => m_proximity;
         
         #endregion
         
         #region VARS
-        
+
+        [SerializeField] private ProximityCoordinator m_proximity = null;
         [SerializeField] protected float m_updateRate = 0.1f;
         protected float m_nextUpdate = 0f;
         

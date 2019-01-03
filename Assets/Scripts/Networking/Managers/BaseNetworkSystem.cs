@@ -40,6 +40,7 @@ namespace SoL.Networking.Managers
         protected abstract void Func_Send(Host host, GameCommand command);
         protected abstract void Func_BroadcastAll(Host host, GameCommand command);
         protected abstract void Func_BroadcastOthers(Host host, GameCommand command);
+        protected abstract void Func_BroadcastGroup(Host host, GameCommand command);
 
         protected abstract void Connect(Event netEvent);
         protected abstract void Disconnect(Event netEvent);
@@ -76,7 +77,7 @@ namespace SoL.Networking.Managers
             
         }
         
-        protected void Update()
+        protected virtual void Update()
         {
             Event netEvent;
             while (m_logicEventQueue.TryDequeue(out netEvent))
@@ -181,6 +182,10 @@ namespace SoL.Networking.Managers
 
                                 case CommandType.BroadcastOthers:
                                     Func_BroadcastOthers(host, command);
+                                    break;
+                                
+                                case CommandType.BroadcastGroup:
+                                    Func_BroadcastGroup(host, command);
                                     break;
                             }
 
