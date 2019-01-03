@@ -110,9 +110,19 @@ namespace SoL.Networking.Objects
                         Debug.LogWarning("Receiving PositionUpdate for myself??");
                         break;   
                     }
+                    
                     var pos = buffer.ReadVector3(BaseNetworkSystem.Range);
                     var rot = buffer.ReadFloat();
-                    m_newData = new Vector4(pos.x, pos.y, pos.z, rot);
+
+                    if (m_isServer)
+                    {
+                        gameObject.transform.position = pos;
+                        m_toRotate.transform.rotation = Quaternion.Euler(new Vector3(0f, rot, 0f));
+                    }
+                    else
+                    {
+                        m_newData = new Vector4(pos.x, pos.y, pos.z, rot);   
+                    }
                     break;
                 
                 default:
