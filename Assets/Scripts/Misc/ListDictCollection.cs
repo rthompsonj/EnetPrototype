@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Misc
@@ -46,6 +45,7 @@ namespace Misc
         #region LIST_LIKE
 
         public int Count => m_list.Count;
+        public List<TValue> Values => m_list;
 
         public TValue this[int index]
         {
@@ -59,7 +59,7 @@ namespace Misc
             }
         }
 
-        public IEnumerator<TValue> Values()
+        public IEnumerable<TValue> GetValues()
         {
             for (int i = 0; i < m_list.Count; i++)
             {
@@ -94,7 +94,7 @@ namespace Misc
             }
         }
 
-        public IEnumerator<KeyValuePair<TKey, TValue>> Items()
+        public IEnumerable<KeyValuePair<TKey, TValue>> GetItems()
         {
             foreach (var kvp in m_dict)
             {
