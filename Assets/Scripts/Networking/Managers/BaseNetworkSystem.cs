@@ -76,7 +76,8 @@ namespace SoL.Networking.Managers
 
         protected virtual void OnDestroy()
         {
-            
+            m_logicThread.Abort();
+            m_networkThread.Abort();
         }
         
         protected virtual void Update()
