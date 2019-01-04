@@ -595,7 +595,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_params: {fileID: 11400000, guid: 470ef609a3c304ecba02e04ed0b56ba8, type: 2}
-  m_type: 1
+  m_type: 2
   m_stats: {fileID: 755285171}
   m_targetHost: 127.0.0.1
   m_targetPort: 9900

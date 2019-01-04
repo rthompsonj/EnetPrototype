@@ -1,4 +1,7 @@
 using System.Collections.Generic;
+using ENet;
+using NetStack.Serialization;
+using SoL.Networking.Managers;
 using SoL.Networking.Objects;
 using UnityEngine;
 
@@ -6,6 +9,9 @@ namespace SoL.Networking.Proximity
 {
     public class ProximityCoordinator : MonoBehaviour
     {
+        private readonly BitBuffer m_buffer = new BitBuffer(128);
+        private NetworkedObject m_netObj = null;
+        
         struct Observer
         {
             public SensorDistance Flags;
@@ -16,9 +22,6 @@ namespace SoL.Networking.Proximity
         private const float kFarUpdateRate = 1f/5f;
         
         private readonly Dictionary<uint, Observer> m_observers = new Dictionary<uint, Observer>();
-        
-        private readonly HashSet<NetworkedObject> m_nearSet = new HashSet<NetworkedObject>();
-        private readonly HashSet<NetworkedObject> m_farSet = new HashSet<NetworkedObject>();
 
         private float m_nextUpdateNear = 0f;
         private float m_nextUpdateFar = 0f;
@@ -28,6 +31,7 @@ namespace SoL.Networking.Proximity
         
         void Awake()
         {
+            m_netObj = gameObject.GetComponentInParent<NetworkedObject>();
             m_nextUpdateNear = Time.time + kNearUpdateRate;
             m_nextUpdateFar = Time.time + kFarUpdateRate;
         }
@@ -85,23 +89,6 @@ namespace SoL.Networking.Proximity
         
         public void TriggerEnter(NetworkedObject obj, SensorDistance distance)
         {
-            /*
-            switch (distance)
-            {
-                case SensorDistance.Near:
-                    m_farSet.Remove(obj);
-                    m_nearSet.Add(obj);
-                    break;
-                
-                case SensorDistance.Far:
-                    if (m_nearSet.Contains(obj) == false)
-                    {
-                        m_farSet.Add(obj);
-                    }
-                    break;
-            }
-            */
-
             Observer observer;
             if (m_observers.TryGetValue(obj.Peer.ID, out observer))
             {
@@ -119,6 +106,18 @@ namespace SoL.Networking.Proximity
                     Flags = distance,
                     Object = obj
                 });
+                
+                // SEND SPAWN PACKET
+                m_buffer.AddEntityHeader(m_netObj.Peer, OpCodes.Spawn);
+                m_buffer.AddInt((int) m_netObj.SpawnType);
+                m_buffer.AddInitialState(m_netObj);
+                var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                var command = GameCommandPool.GetGameCommand();
+                command.Type = CommandType.Send;
+                command.Target = obj.Peer;
+                command.Channel = 1;
+                command.Packet = packet;
+                m_netObj.Network.AddCommandToQueue(command);
             }
             
             UpdateCounts();
@@ -126,21 +125,6 @@ namespace SoL.Networking.Proximity
         
         public void TriggerExit(NetworkedObject obj, SensorDistance distance)
         {
-            /*
-            switch (distance)
-            {
-                case SensorDistance.Near:
-                    m_farSet.Add(obj);
-                    m_nearSet.Remove(obj);
-                    break;
-                
-                case SensorDistance.Far:
-                    m_farSet.Remove(obj);
-                    m_nearSet.Remove(obj);
-                    break;
-            }
-            */
-
             Observer observer;
             if (m_observers.TryGetValue(obj.Peer.ID, out observer))
             {
@@ -148,6 +132,16 @@ namespace SoL.Networking.Proximity
                 if (newFlag == SensorDistance.None)
                 {
                     m_observers.Remove(obj.Peer.ID);
+                    
+                    // SEND DESTROY PACKET
+                    m_buffer.AddEntityHeader(m_netObj.Peer, OpCodes.Destroy);
+                    var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                    var command = GameCommandPool.GetGameCommand();
+                    command.Type = CommandType.Send;
+                    command.Target = obj.Peer;
+                    command.Channel = 1;
+                    command.Packet = packet;
+                    m_netObj.Network.AddCommandToQueue(command);
                 }
                 else
                 {

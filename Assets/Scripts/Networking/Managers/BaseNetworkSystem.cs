@@ -16,7 +16,7 @@ namespace SoL.Networking.Managers
 {
     public abstract class BaseNetworkSystem : MonoBehaviour
     {
-        public const float kMaxRange = 5f;
+        public const float kMaxRange = 32f;
         
         public static BoundedRange[] Range = new BoundedRange[]
         {
@@ -24,8 +24,10 @@ namespace SoL.Networking.Managers
             new BoundedRange(-kMaxRange, kMaxRange, 0.05f),
             new BoundedRange(-kMaxRange, kMaxRange, 0.05f)
         };
-        
-        [SerializeField] protected GameObject m_playerGo = null;
+
+        [SerializeField] protected SpawnParameters m_params = null;
+        [SerializeField] protected SpawnType m_type = SpawnType.None;
+
         [SerializeField] private TextMeshProUGUI m_stats = null;
         private Host m_host;
         protected Peer m_peer;

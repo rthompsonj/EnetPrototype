@@ -1,4 +1,5 @@
 using ENet;
+using Misc;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
 using SoL.Networking.Proximity;
@@ -25,6 +26,10 @@ namespace SoL.Networking.Objects
         #endregion
         
         #region PROPERTIES
+
+        public BaseNetworkSystem Network => m_network;
+        
+        public SpawnType SpawnType { get; set; }
         
         public Peer Peer { get; private set; }
         public uint ID { get; private set; }

@@ -44,6 +44,9 @@ namespace SoL.Networking.Managers
 
             for (int i = 0; i < m_peers.Count; i++)
             {
+                if (m_peers[i].Proximity == null)
+                    continue;
+                
                 //TODO: this may always return 1 as the box is inside of the triggers?
                 int observers = m_peers[i].Proximity.GetUpdateCount();
                 if (observers <= 0)
@@ -154,7 +157,16 @@ namespace SoL.Networking.Managers
         protected override void Connect(Event netEvent)
         {
             Debug.Log($"Client connected - ID: {netEvent.Peer.ID}, IP: {netEvent.Peer.IP}");
-            SpawnRemotePlayer(netEvent.Peer);
+            m_buffer.AddEntityHeader(netEvent.Peer, OpCodes.ConnectionEvent);
+            m_buffer.AddUInt((uint)OpCodes.Ok);
+            var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.Send;
+            command.Packet = packet;
+            command.Channel = 0;
+            command.Target = netEvent.Peer;
+            m_commandQueue.Enqueue(command);
+            //SpawnRemotePlayer(netEvent.Peer);
         }
 
         protected override void Disconnect(Event netEvent)
@@ -205,6 +217,11 @@ namespace SoL.Networking.Managers
 
             switch (op)
             {
+                case OpCodes.Spawn:
+                    var spawnType = (Misc.SpawnType)m_buffer.ReadInt();
+                    SpawnRemotePlayer(netEvent.Peer, spawnType);
+                    break;
+                
                 case OpCodes.PositionUpdate:
                     Profiler.BeginSample("Process Packet - Position Update");
                     /*
@@ -221,6 +238,18 @@ namespace SoL.Networking.Managers
                     if (m_peers.TryGetValue(netEvent.Peer.ID, out nobj))
                     {
                         nobj.ProcessPacket(op, buffer);
+
+                        // player TODO: (for now)
+                        if (nobj.Proximity == null)
+                        {
+                            var command = GameCommandPool.GetGameCommand();
+                            command.Type = CommandType.BroadcastOthers;
+                            command.Source = netEvent.Peer;
+                            command.Channel = 1;
+                            command.Packet = netEvent.Packet;
+
+                            m_commandQueue.Enqueue(command);                            
+                        }
                     }
                     Profiler.EndSample();
                     break;
@@ -235,13 +264,15 @@ namespace SoL.Networking.Managers
         #endregion
         
         
-        private void SpawnRemotePlayer(Peer peer)
+        private void SpawnRemotePlayer(Peer peer, Misc.SpawnType spawnType)
         {
-            var go = Instantiate(m_playerGo);
+            var go = m_params.InstantiateSpawn(spawnType);
             NetworkedObject nobj = go.GetComponent<NetworkedObject>();
+            nobj.SpawnType = spawnType;
             nobj.ServerInitialize(this, peer);
 
             m_buffer.AddEntityHeader(peer, OpCodes.Spawn);
+            m_buffer.AddInt((int)spawnType);
             m_buffer.AddInitialState(nobj);
             Packet spawnPlayerPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
 
@@ -288,16 +319,36 @@ namespace SoL.Networking.Managers
                 m_commandQueue.Enqueue(spawnOthersCommand);
             }
             */
+
+            var cnt = 0;
+            for (int i = 0; i < m_peers.Count; i++)
+            {
+                // do not send ourselves
+                if (m_peers[i].Peer.ID == peer.ID)
+                    continue;
+                
+                // do not send NPCs
+                if (m_peers[i].Proximity != null)
+                    continue;
+
+                cnt += 1;
+            }
             
             // one large packet
             m_buffer.AddEntityHeader(peer, OpCodes.BulkSpawn);
-            m_buffer.AddInt(m_peers.Count);
+            m_buffer.AddInt(cnt);
             for (int i = 0; i < m_peers.Count; i++)
             {
+                // do not send ourselves
                 if (m_peers[i].Peer.ID == peer.ID)
+                    continue;
+                
+                // do not send NPCs
+                if (m_peers[i].Proximity != null)
                     continue;
 
                 m_buffer.AddEntityHeader(m_peers[i].Peer, OpCodes.Spawn, false);
+                m_buffer.AddInt((int)m_peers[i].SpawnType);
                 m_buffer.AddInitialState(m_peers[i]);
             }
             var spawnOthersPacket = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);

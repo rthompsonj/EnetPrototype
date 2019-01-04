@@ -45,6 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b21e3403e1249eda0f919dddbf9d5b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  NNear: 0
+  NFar: 0
 --- !u!1 &1626674327678800921
 GameObject:
   m_ObjectHideFlags: 0
@@ -88,7 +90,7 @@ SphereCollider:
   m_IsTrigger: 1
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 4
+  m_Radius: 30
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5648341186144897438
 MonoBehaviour:
@@ -102,7 +104,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 228a28bad5034cbaa25ef429470227ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_distance: 1
+  m_distance: 2
   m_coordinator: {fileID: 1932599769522208194}
 --- !u!1 &3437182744294528202
 GameObject:
@@ -147,7 +149,7 @@ SphereCollider:
   m_IsTrigger: 1
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 2
+  m_Radius: 10
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5697585659343776167
 MonoBehaviour:
@@ -161,5 +163,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 228a28bad5034cbaa25ef429470227ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_distance: 0
+  m_distance: 1
   m_coordinator: {fileID: 1932599769522208194}

@@ -6,26 +6,14 @@ using UnityEngine;
 
 namespace SoL.Networking.Objects
 {
-    public class NetworkedCube : NetworkedObject
+    public class PlayerObject : NetworkedObject
     {
-        #region SERIALIZED_VARS
-        
-        [SerializeField] private Renderer m_renderer = null;
-        [SerializeField] private Material m_serverMat = null;
-        [SerializeField] private Material m_remoteMat = null;
-        [SerializeField] private Material m_localMat = null;
-
+        [SerializeField] private GameObject m_camPos = null;
         [SerializeField] private TextMeshPro m_text = null;
-
-        [SerializeField] private Transform m_toRotate = null;
-        
-        #endregion
-
         private PlayerReplication m_playerReplication = null;
         private Vector4? m_newData = null;
+        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
 
-        #region MONO
-        
         protected override void Update()
         {
             base.Update();
@@ -33,25 +21,11 @@ namespace SoL.Networking.Objects
             UpdateLocal();
         }
         
-        private void OnMouseDown()
-        {
-            if (m_isServer)
-            {
-                m_playerReplication.PlayerName.Value = System.Guid.NewGuid().ToString();                
-            }
-        }
-        
-        #endregion
-
-        #region OVERRIDES
-        
-        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
-        
         protected override void AddLayers()
         {
             m_playerReplication = new PlayerReplication();
         }
-
+        
         protected override void Subscribe()
         {
             base.Subscribe();
@@ -68,7 +42,7 @@ namespace SoL.Networking.Objects
         {
             outBuffer = base.AddInitialState(outBuffer);
             outBuffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-            outBuffer.AddFloat(m_toRotate.eulerAngles.y);
+            outBuffer.AddFloat(gameObject.transform.eulerAngles.y);
             return outBuffer;
         }
 
@@ -77,26 +51,26 @@ namespace SoL.Networking.Objects
             base.ReadInitialState(initBuffer);
             var pos = initBuffer.ReadVector3(BaseNetworkSystem.Range);
             var rot = Quaternion.Euler(new Vector3(0f, initBuffer.ReadFloat(), 0f));
-            gameObject.transform.position = pos;
-            m_toRotate.rotation = rot;
+            gameObject.transform.SetPositionAndRotation(pos, rot);
         }
-
+        
         protected override void OnStartServer()
         {
-            m_renderer.material = m_serverMat;
             gameObject.name = $"{ID} (SERVER)";
+            m_playerReplication.PlayerName.Value = ID.ToString();
         }
 
         protected override void OnStartClient()
         {
-            m_renderer.material = m_remoteMat;            
             gameObject.name = $"{ID} (CLIENT)";
         }
 
         protected override void OnStartLocalClient()
         {
-            m_renderer.material = m_localMat;
             gameObject.name = $"{ID} (LOCAL)";
+            Camera.main.gameObject.transform.SetParent(m_camPos.transform);
+            Camera.main.gameObject.transform.localPosition = Vector3.zero;
+            Camera.main.gameObject.transform.localRotation = Quaternion.identity;
         }
         
         protected override void ProcessPacketInternal(OpCodes op, BitBuffer buffer)
@@ -116,8 +90,7 @@ namespace SoL.Networking.Objects
 
                     if (m_isServer)
                     {
-                        gameObject.transform.position = pos;
-                        m_toRotate.transform.rotation = Quaternion.Euler(new Vector3(0f, rot, 0f));
+                        gameObject.transform.SetPositionAndRotation(pos, Quaternion.Euler(new Vector3(0f, rot, 0f)));
                     }
                     else
                     {
@@ -131,59 +104,58 @@ namespace SoL.Networking.Objects
             }
         }
         
-        #endregion
-
         private void PlayerNameOnChanged(string obj)
         {
-            if (obj.Length > 5)
-            {
-                m_text.SetText(m_playerReplication.PlayerName.Value.Substring(0, 5));
-            }
-            else
-            {
-                m_text.SetText("PLAYER");
-            }
+            m_text.SetText(m_playerReplication.PlayerName.Value);
         }
         
         private void LerpPositionRotation()
         {
             if (m_newData.HasValue)
             {
+                var targetPos = Vector3.Lerp(gameObject.transform.position, m_newData.Value, Time.deltaTime * 2f);
                 var targetRot = Quaternion.Euler(new Vector3(0f, m_newData.Value.w, 0f));
-                m_toRotate.rotation = Quaternion.Lerp(m_toRotate.rotation, targetRot, Time.deltaTime * 2f);
-                gameObject.transform.position = Vector3.Lerp(gameObject.transform.position, m_newData.Value, Time.deltaTime);
+                gameObject.transform.SetPositionAndRotation(targetPos, targetRot);
                 if (Vector3.Distance(gameObject.transform.position, m_newData.Value) < 0.1f)
                 {
                     m_newData = null;
                 }
             }
         }
-
+        
         private void UpdateLocal()
         {
             if (m_isLocal == false)
                 return;
+
+            var forward = Input.GetKey(KeyCode.W) ? 1f : 0f;
+            var backward = Input.GetKey(KeyCode.S) ? -1f : 0f;
+            var left = Input.GetKey(KeyCode.A) ? -1f : 0f;
+            var right = Input.GetKey(KeyCode.D) ? 1f : 0f;
+
+            var rotateLeft = Input.GetKey(KeyCode.Q) ? -1f : 0f;
+            var rotateRight = Input.GetKey(KeyCode.E) ? 1f : 0f;
+
+            Vector2 movement = new Vector2(left + right, forward + backward) * Time.deltaTime * 10f;
             
-            if (m_newData.HasValue == false)
+            var rotation = rotateLeft + rotateRight;
+            rotation *= Time.deltaTime * 50f;
+
+            if (rotation != 0f)
             {
-                Vector3 randomPos = new Vector3(
-                    Random.Range(-1f, 1f) * 10f,
-                    0f,
-                    Random.Range(-1f, 1f) * 10f                    
-                );
-                Vector3 newPos = gameObject.transform.position + randomPos;
-
-                newPos.x = Mathf.Clamp(newPos.x, -BaseNetworkSystem.kMaxRange, BaseNetworkSystem.kMaxRange);
-                newPos.z = Mathf.Clamp(newPos.z, -BaseNetworkSystem.kMaxRange, BaseNetworkSystem.kMaxRange);
-
-                m_newData = new Vector4(newPos.x, newPos.y, newPos.z, Random.Range(0f, 1f) * 360f);
+                gameObject.transform.RotateAround(gameObject.transform.position, Vector3.up, rotation);
+            }
+            
+            if (movement != Vector2.zero)
+            {
+                gameObject.transform.Translate(movement.x, 0f, movement.y, Space.Self);
             }
 
             if (CanUpdate())
             {
                 m_buffer.AddEntityHeader(ClientNetworkSystem.MyPeer, OpCodes.PositionUpdate);
                 m_buffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-                m_buffer.AddFloat(m_toRotate.eulerAngles.y);
+                m_buffer.AddFloat(gameObject.transform.eulerAngles.y);
 
                 var command = GameCommandPool.GetGameCommand();
                 command.Type = CommandType.Send;

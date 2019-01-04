@@ -122,8 +122,26 @@ namespace SoL.Networking.Managers
 
             switch (op)
             {
+                case OpCodes.ConnectionEvent:
+                    var result = (OpCodes)m_buffer.ReadUInt();
+                    switch (result)
+                    {
+                        case OpCodes.Ok:
+                            m_buffer.AddEntityHeader(m_peer, OpCodes.Spawn);
+                            m_buffer.AddInt((int)m_type);
+                            var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
+                            var command = GameCommandPool.GetGameCommand();
+                            command.Type = CommandType.Send;
+                            command.Packet = packet;
+                            command.Channel = 0;
+                            m_commandQueue.Enqueue(command);
+                            break;
+                    }
+                    break;
+                
                 case OpCodes.Spawn:
-                    nobj = SpawnNetworkedObject(id, buffer);
+                    var spawnType = (Misc.SpawnType)m_buffer.ReadInt();
+                    nobj = SpawnNetworkedObject(id, buffer, spawnType);
                     break;
                 
                 case OpCodes.BulkSpawn:
@@ -131,7 +149,8 @@ namespace SoL.Networking.Managers
                     for (int i = 0; i < cnt; i++)
                     {
                         header = m_buffer.GetEntityHeader();
-                        SpawnNetworkedObject(header.ID, buffer);
+                        var bulkSpawnType = (Misc.SpawnType) m_buffer.ReadInt();
+                        SpawnNetworkedObject(header.ID, buffer, bulkSpawnType);
                     }
                     break;
 		        
@@ -157,9 +176,9 @@ namespace SoL.Networking.Managers
             }
         }
 
-        private NetworkedObject SpawnNetworkedObject(uint id, BitBuffer buffer)
+        private NetworkedObject SpawnNetworkedObject(uint id, BitBuffer buffer, Misc.SpawnType spawnType)
         {
-            var go = Instantiate(m_playerGo);
+            var go = m_params.InstantiateSpawn(spawnType);
             var nobj = go.GetComponent<NetworkedObject>();
             nobj.ClientInitialize(this, id, buffer);
             m_peers.Add(id, nobj);
