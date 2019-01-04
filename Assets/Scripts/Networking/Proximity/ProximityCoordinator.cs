@@ -6,8 +6,16 @@ namespace SoL.Networking.Proximity
 {
     public class ProximityCoordinator : MonoBehaviour
     {
+        struct Observer
+        {
+            public SensorDistance Flags;
+            public NetworkedObject Object;
+        }
+        
         private const float kNearUpdateRate = 1f/10f;
         private const float kFarUpdateRate = 1f/5f;
+        
+        private readonly Dictionary<uint, Observer> m_observers = new Dictionary<uint, Observer>();
         
         private readonly HashSet<NetworkedObject> m_nearSet = new HashSet<NetworkedObject>();
         private readonly HashSet<NetworkedObject> m_farSet = new HashSet<NetworkedObject>();
@@ -30,12 +38,12 @@ namespace SoL.Networking.Proximity
 
             if (Time.time >= m_nextUpdateNear)
             {
-                cnt += m_nearSet.Count;
+                cnt += NNear;
             }
 
             if (Time.time >= m_nextUpdateFar)
             {
-                cnt += m_farSet.Count;
+                cnt += NFar;
             }
 
             return cnt;
@@ -43,27 +51,41 @@ namespace SoL.Networking.Proximity
 
         public IEnumerable<NetworkedObject> GetUpdates()
         {
-            if (Time.time >= m_nextUpdateNear)
+            bool updateNear = Time.time > m_nextUpdateNear;
+            bool updateFar = Time.time > m_nextUpdateFar;
+
+            if (updateNear == false && updateFar == false)
             {
-                foreach (var no in m_nearSet)
+                yield break;   
+            }            
+            
+            foreach (var kvp in m_observers)
+            {
+                if (updateNear && kvp.Value.Flags.HasFlag(SensorDistance.Near))
                 {
-                    yield return no;
+                    yield return kvp.Value.Object;
                 }
-                m_nextUpdateNear = Time.time + kNearUpdateRate;
+                else if (updateFar && kvp.Value.Flags.HasFlag(SensorDistance.Far) &&
+                         kvp.Value.Flags.HasFlag(SensorDistance.Near) == false)
+                {
+                    yield return kvp.Value.Object;
+                }
             }
 
-            if (Time.time >= m_nextUpdateFar)
+            if (updateNear)
             {
-                foreach (var no in m_farSet)
-                {
-                    yield return no;
-                }
-                m_nextUpdateFar = Time.time + kFarUpdateRate;
+                m_nextUpdateNear = Time.time + kNearUpdateRate;               
+            }
+
+            if (updateFar)
+            {
+                m_nextUpdateFar = Time.time + kFarUpdateRate;                
             }
         }
         
         public void TriggerEnter(NetworkedObject obj, SensorDistance distance)
         {
+            /*
             switch (distance)
             {
                 case SensorDistance.Near:
@@ -78,12 +100,33 @@ namespace SoL.Networking.Proximity
                     }
                     break;
             }
+            */
+
+            Observer observer;
+            if (m_observers.TryGetValue(obj.Peer.ID, out observer))
+            {
+                var newFlag = observer.Flags.SetFlag(distance);
+                m_observers[obj.Peer.ID] = new Observer
+                {
+                    Flags = newFlag,
+                    Object = obj
+                };
+            }
+            else
+            {
+                m_observers.Add(obj.Peer.ID, new Observer
+                {
+                    Flags = distance,
+                    Object = obj
+                });
+            }
             
             UpdateCounts();
         }
         
         public void TriggerExit(NetworkedObject obj, SensorDistance distance)
         {
+            /*
             switch (distance)
             {
                 case SensorDistance.Near:
@@ -96,14 +139,49 @@ namespace SoL.Networking.Proximity
                     m_nearSet.Remove(obj);
                     break;
             }
+            */
+
+            Observer observer;
+            if (m_observers.TryGetValue(obj.Peer.ID, out observer))
+            {
+                var newFlag = observer.Flags.UnsetFlag(distance);
+                if (newFlag == SensorDistance.None)
+                {
+                    m_observers.Remove(obj.Peer.ID);
+                }
+                else
+                {
+                    m_observers[obj.Peer.ID] = new Observer
+                    {
+                        Flags = newFlag,
+                        Object = obj
+                    };                    
+                }
+            }
             
             UpdateCounts();
         }
 
         private void UpdateCounts()
         {
-            NNear = m_nearSet.Count;
-            NFar = m_farSet.Count;
+            int nearCount = 0;
+            int farCount = 0;
+            
+            foreach (var kvp in m_observers)
+            {
+                if (kvp.Value.Flags.HasFlag(SensorDistance.Far))
+                {
+                    farCount += 1;
+                }
+
+                if (kvp.Value.Flags.HasFlag(SensorDistance.Near))
+                {
+                    nearCount += 1;
+                }
+            }
+
+            NNear = nearCount;
+            NFar = farCount;
         }
     }
 }

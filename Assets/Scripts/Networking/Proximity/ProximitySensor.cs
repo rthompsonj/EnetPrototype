@@ -1,12 +1,33 @@
+using System;
 using SoL.Networking.Objects;
 using UnityEngine;
 
 namespace SoL.Networking.Proximity
 {
+    [Flags]
     public enum SensorDistance
     {
-        Near,
-        Far
+        None = 0,
+        Near = 1 << 0,        
+        Far  = 1 << 1
+    }
+
+    public static class SensorDistanceExtensions
+    {
+        public static SensorDistance SetFlag(this SensorDistance a, SensorDistance b)
+        {
+            return a | b;
+        }
+
+        public static SensorDistance UnsetFlag(this SensorDistance a, SensorDistance b)
+        {
+            return a & (~b);
+        }
+
+        public static bool HasFlag(this SensorDistance a, SensorDistance b)
+        {
+            return (a & b) == b;
+        }
     }
     
     public class ProximitySensor : MonoBehaviour
