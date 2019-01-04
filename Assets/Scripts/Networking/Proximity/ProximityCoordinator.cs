@@ -169,14 +169,13 @@ namespace SoL.Networking.Proximity
             
             foreach (var kvp in m_observers)
             {
-                if (kvp.Value.Flags.HasFlag(SensorDistance.Far))
-                {
-                    farCount += 1;
-                }
-
                 if (kvp.Value.Flags.HasFlag(SensorDistance.Near))
                 {
                     nearCount += 1;
+                }
+                else if (kvp.Value.Flags.HasFlag(SensorDistance.Far))
+                {
+                    farCount += 1;
                 }
             }
 
