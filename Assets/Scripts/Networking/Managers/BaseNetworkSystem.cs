@@ -47,6 +47,9 @@ namespace SoL.Networking.Managers
 
         private Thread m_logicThread = null;
         private Thread m_networkThread = null;
+
+        private volatile bool m_logicThreadActive = false;
+        private volatile bool m_networkThreadActive = false;
         
         //        CommandQueue: game thread writes,    logic thread reads
         //       FunctionQueue: logic thread writes,   network thread reads
@@ -65,7 +68,10 @@ namespace SoL.Networking.Managers
         protected virtual void Start()
         {
             m_logicThread = LogicThread();
-            m_networkThread = NetworkThread();   
+            m_networkThread = NetworkThread();
+
+            m_logicThreadActive = true;
+            m_networkThreadActive = true;
             
             m_logicThread.Start();
             m_networkThread.Start();
@@ -73,8 +79,8 @@ namespace SoL.Networking.Managers
 
         protected virtual void OnDestroy()
         {
-            m_logicThread.Abort();
-            m_networkThread.Abort();
+            m_logicThreadActive = false;
+            m_networkThreadActive = false;
         }
         
         protected void Update()
@@ -118,7 +124,7 @@ namespace SoL.Networking.Managers
         {
             return new Thread(() =>
             {
-                while (true)
+                while (m_logicThreadActive)
                 {
                     GameCommand command = null;
                     Event netEvent;
@@ -155,7 +161,7 @@ namespace SoL.Networking.Managers
                 using (Host host = new Host())
                 {
                     m_host = host;
-                    while (true)
+                    while (m_networkThreadActive)
                     {
                         GameCommand command = null;
                         
