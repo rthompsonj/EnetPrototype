@@ -2,7 +2,7 @@
   <img src="https://i.imgur.com/jD77417.png" alt="alt logo">
 </p>
 
-[![PayPal](https://drive.google.com/uc?id=1OQrtNBVJehNVxgPf6T6yX1wIysz1ElLR)](https://www.paypal.me/nxrighthere) [![Bountysource](https://drive.google.com/uc?id=19QRobscL8Ir2RL489IbVjcw3fULfWS_Q)](https://salt.bountysource.com/checkout/amount?team=nxrighthere) [![Discord](https://discordapp.com/api/guilds/515987760281288707/embed.png)](https://discord.gg/ceaWXVw)
+[![PayPal](https://drive.google.com/uc?id=1OQrtNBVJehNVxgPf6T6yX1wIysz1ElLR)](https://www.paypal.me/nxrighthere) [![Bountysource](https://drive.google.com/uc?id=19QRobscL8Ir2RL489IbVjcw3fULfWS_Q)](https://salt.bountysource.com/checkout/amount?team=nxrighthere) [![Coinbase](https://drive.google.com/uc?id=1LckuF-IAod6xmO9yF-jhTjq1m-4f7cgF)](https://commerce.coinbase.com/checkout/03e11816-b6fc-4e14-b974-29a1d0886697) [![Discord](https://discordapp.com/api/guilds/515987760281288707/embed.png)](https://discord.gg/ceaWXVw)
 
 Lightweight toolset for creating concurrent networking systems for multiplayer games.
 
@@ -19,9 +19,10 @@ Modules:
 - Serialization
   - Lightweight and straightforward
   - Fast processing
-  - Fluent builder
+  - [Span](https://msdn.microsoft.com/en-us/magazine/mt814808.aspx) support
+  - [Fluent builder](http://www.stefanoricciardi.com/2010/04/14/a-fluent-builder-in-c/) support
   - Compact bit-packing
-    - ZigZag encoding
+    - [ZigZag](https://developers.google.com/protocol-buffers/docs/encoding#signed-integers) encoding
     - Elastic encoding
 - Threading
   - Concurrent objects buffer
@@ -37,11 +38,13 @@ By default, all scripts are compiled for .NET Framework 3.5. Define `NET_4_6` di
 
 Define `NETSTACK_INLINING` to enable aggressive inlining for performance critical functionality.
 
+Define `NETSTACK_SPAN` to enable support for Span.
+
 Define `NETSTACK_BUFFERS_LOG` to enable buffers logging.
 
 Usage
 --------
-##### Thread-safe buffers pooling:
+##### Thread-safe buffers pool:
 ```c#
 // Create a new buffers pool with a maximum size of 1024 bytes per array, 50 arrays per bucket
 ArrayPool<byte> buffers = ArrayPool<byte>.Create(1024, 50);
@@ -60,7 +63,7 @@ for (int i = 0; i < buffer.Length; i++) {
 buffers.Return(buffer);
 ```
 
-##### Concurrent objects pooling:
+##### Concurrent objects pool:
 ```c#
 // Define a message object
 class MessageObject {
@@ -96,15 +99,10 @@ messages.Release(message);
 ConcurrentBuffer conveyor = new ConcurrentBuffer(8192);
 
 // Enqueue an object
-if (!conveyor.TryEnqueue(message))
-	Console.WriteLine("Conveyor is full!");
+conveyor.Enqueue(message);
 
-// Dequeue all objects
-object element;
-
-while (conveyor.TryDequeue(out element)) {
-	MessageObject message = (MessageObject)element;
-}
+// Dequeue object
+MessageObject message = (MessageObject)conveyor.Dequeue();
 ```
 
 ##### Compress float:
@@ -164,9 +162,9 @@ data.AddUInt(peer)
 .AddInt(compressedRotation.a)
 .AddInt(compressedRotation.b)
 .AddInt(compressedRotation.c)
-.ToArray(buffer);
+.ToArray(buffer); // The length of the byte array should be at least data.Length + 4 bytes for conversion
 
-// Get data length in bit buffer
+// Get data length in bit buffer for sending through the network
 Console.WriteLine("Bit buffer length: " + data.Length);
 
 // Reset bit buffer for further reusing
