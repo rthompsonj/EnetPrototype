@@ -199,52 +199,6 @@ namespace SoL.Networking.Objects
             return inBuffer;
         }        
 
-        /*
-        public virtual BitBuffer AddInitialState(BitBuffer outBuffer)
-        {
-            outBuffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-            outBuffer.AddFloat(gameObject.transform.eulerAngles.y);
-            m_replicationLayer?.WriteAllSyncData(outBuffer);
-            return outBuffer;
-        }
-
-        protected virtual BitBuffer ReadInitialState(BitBuffer inBuffer)
-        {
-            var pos = inBuffer.ReadVector3(BaseNetworkSystem.Range);
-            var rot = Quaternion.Euler(new Vector3(0f, inBuffer.ReadFloat(), 0f));
-            gameObject.transform.SetPositionAndRotation(pos, rot);
-            m_replicationLayer?.ReadAllSyncData(inBuffer);
-            return inBuffer;
-        }
-        
-        public void UpdateState()
-        {
-            if (UseProximity && NObservers <= 0)
-                return;
-            
-            m_buffer.AddEntityHeader(this, OpCodes.StateUpdate);
-            m_buffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-            m_buffer.AddFloat(gameObject.transform.eulerAngles.y);
-            var packet = m_buffer.GetPacketFromBuffer(PacketFlags.None);
-            var command = GameCommandPool.GetGameCommand();
-            command.Packet = packet;
-            command.Channel = 2;
-            command.Source = NetworkId.Peer;
-
-            if (UseProximity)
-            {
-                command.Type = CommandType.BroadcastGroup;
-                command.TargetGroup = GetObservingPeers();
-            }
-            else
-            {
-                command.Type = CommandType.BroadcastOthers;
-            }
-
-            m_network.AddCommandToQueue(command);
-        }
-        */
-
         public Peer[] GetObservingPeers(bool considerProximityBands = true)
         {
             int cnt = 0;

@@ -80,7 +80,7 @@ namespace SoL.Networking.Objects
             if (m_targetPosRot.HasValue)
             {
                 var targetPos = Vector3.Lerp(gameObject.transform.position, m_targetPosRot.Value, Time.deltaTime * 2f);
-                var targetRot = Quaternion.Euler(new Vector3(0f, m_targetPosRot.Value.w, 0f));
+                var targetRot = Quaternion.Lerp(gameObject.transform.rotation, Quaternion.Euler(new Vector3(0f, m_targetPosRot.Value.w, 0f)), Time.deltaTime * 2f);
                 gameObject.transform.SetPositionAndRotation(targetPos, targetRot);
                 if (Vector3.Distance(gameObject.transform.position, m_targetPosRot.Value) < 0.1f)
                 {
