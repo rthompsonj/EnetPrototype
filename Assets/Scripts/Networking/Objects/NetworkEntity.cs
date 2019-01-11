@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace SoL.Networking.Objects
 {
-    public class NetworkEntity : MonoBehaviour
+    public abstract class NetworkEntity : MonoBehaviour
     {
         public NetworkId NetworkId { get; private set; }
         
@@ -131,6 +131,10 @@ namespace SoL.Networking.Objects
                     m_replicationLayer?.ProcessSyncUpdate(inBuffer);
                     break;
                 
+                case OpCodes.StateUpdate:
+                    ReadStateUpdate(inBuffer);
+                    break;                    
+                
                 default:
                     ProcessPacketInternal(op, inBuffer);
                     break;                
@@ -139,6 +143,63 @@ namespace SoL.Networking.Objects
         
         protected virtual void ProcessPacketInternal(OpCodes op, BitBuffer buffer) { }
 
+        // SERVER ONLY
+        public void UpdateState()
+        {
+            if (HasStateUpdate() == false)
+                return;
+            
+            m_buffer.AddEntityHeader(this, OpCodes.StateUpdate);
+            
+            AddStateUpdate(m_buffer);
+            
+            var packet = m_buffer.GetPacketFromBuffer(PacketFlags.None);
+            var command = GameCommandPool.GetGameCommand();
+            command.Packet = packet;
+            command.Channel = 2;
+            command.Source = NetworkId.Peer;
+
+            if (UseProximity)
+            {
+                command.Type = CommandType.BroadcastGroup;
+                command.TargetGroup = GetObservingPeers();
+            }
+            else
+            {
+                command.Type = CommandType.BroadcastOthers;
+            }
+
+            m_network.AddCommandToQueue(command);
+        }
+
+        protected virtual void ReadStateUpdate(BitBuffer inBuffer)
+        {
+            
+        }
+
+        protected virtual bool HasStateUpdate()
+        {
+            return false;
+        }
+
+        protected virtual BitBuffer AddStateUpdate(BitBuffer outBuffer)
+        {
+            return outBuffer;            
+        }        
+
+        public virtual BitBuffer AddInitialState(BitBuffer outBuffer)
+        {
+            m_replicationLayer?.WriteAllSyncData(outBuffer);
+            return outBuffer;
+        }
+
+        protected virtual BitBuffer ReadInitialState(BitBuffer inBuffer)
+        {
+            m_replicationLayer?.ReadAllSyncData(inBuffer);
+            return inBuffer;
+        }        
+
+        /*
         public virtual BitBuffer AddInitialState(BitBuffer outBuffer)
         {
             outBuffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
@@ -182,6 +243,7 @@ namespace SoL.Networking.Objects
 
             m_network.AddCommandToQueue(command);
         }
+        */
 
         public Peer[] GetObservingPeers(bool considerProximityBands = true)
         {

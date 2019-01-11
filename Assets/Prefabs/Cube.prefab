@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4379016114378548}
   - component: {fileID: 2129597563089855454}
   - component: {fileID: 2321081822046967623}
-  - component: {fileID: 958550784812433378}
+  - component: {fileID: 3647278149782236697}
   - component: {fileID: 5143880208498012696}
   m_Layer: 0
   m_Name: Cube
@@ -65,7 +65,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &958550784812433378
+--- !u!114 &3647278149782236697
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -74,18 +74,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1207754226127390}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6a7b5978bbd2483e8c4f388c6d88f4fd, type: 3}
+  m_Script: {fileID: 11500000, guid: 087c7bda856d41269265e439bdb3e1d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   m_proximityPrefab: {fileID: 1441074598750126104, guid: 4f12f4baf413e4575b5a0bc5b6d305dc,
     type: 3}
   m_updateRate: 0.1
+  m_spawnType: 1
   m_renderer: {fileID: 6224464332904697764}
   m_serverMat: {fileID: 2100000, guid: 9ce89cebf326c443b81b8cc52825eab4, type: 2}
   m_remoteMat: {fileID: 2100000, guid: 37320bdce04eb4fd6876e3c46bd14dbf, type: 2}
   m_localMat: {fileID: 2100000, guid: ae3c0ff9b4a064c72a48af0001a64116, type: 2}
   m_text: {fileID: 92959887665780219}
-  m_toRotate: {fileID: 4605112225065375610}
 --- !u!114 &5143880208498012696
 MonoBehaviour:
   m_ObjectHideFlags: 0
