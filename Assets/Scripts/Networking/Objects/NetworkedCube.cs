@@ -1,3 +1,4 @@
+using Misc;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
 using SoL.Networking.Replication;
@@ -6,10 +7,11 @@ using UnityEngine;
 
 namespace SoL.Networking.Objects
 {
-    public class NetworkedCube : NetworkedObject
+    public class NetworkedCube : NetworkEntity
     {
         #region SERIALIZED_VARS
-        
+
+        [SerializeField] private SpawnType m_spawnType = SpawnType.Cube;
         [SerializeField] private Renderer m_renderer = null;
         [SerializeField] private Material m_serverMat = null;
         [SerializeField] private Material m_remoteMat = null;
@@ -26,16 +28,15 @@ namespace SoL.Networking.Objects
 
         #region MONO
         
-        protected override void Update()
+        private void Update()
         {
-            base.Update();
             LerpPositionRotation();
             UpdateLocal();
         }
         
         private void OnMouseDown()
         {
-            if (m_isServer)
+            if (m_isServer && m_playerReplication != null)
             {
                 m_playerReplication.PlayerName.Value = System.Guid.NewGuid().ToString();                
             }
@@ -43,60 +44,52 @@ namespace SoL.Networking.Objects
         
         #endregion
 
-        #region OVERRIDES
+        #region OVERRIDES     
         
-        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
-        
-        protected override void AddLayers()
+        protected override void InitReplicationLayer()
         {
-            m_playerReplication = new PlayerReplication();
+            base.InitReplicationLayer();
+            if (m_replicationLayer != null)
+            {
+                m_playerReplication = m_replicationLayer as PlayerReplication;   
+            }
         }
 
         protected override void Subscribe()
         {
             base.Subscribe();
-            m_playerReplication.PlayerName.Changed += PlayerNameOnChanged;
+            if (m_playerReplication != null)
+            {
+                m_playerReplication.PlayerName.Changed += PlayerNameOnChanged;   
+            }
         }
 
         protected override void Unsubscribe()
         {
-            base.Unsubscribe();            
-            m_playerReplication.PlayerName.Changed -= PlayerNameOnChanged;
-        }
-        
-        public override BitBuffer AddInitialState(BitBuffer outBuffer)
-        {
-            outBuffer = base.AddInitialState(outBuffer);
-            outBuffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-            outBuffer.AddFloat(m_toRotate.eulerAngles.y);
-            return outBuffer;
-        }
-
-        protected override void ReadInitialState(BitBuffer initBuffer)
-        {
-            base.ReadInitialState(initBuffer);
-            var pos = initBuffer.ReadVector3(BaseNetworkSystem.Range);
-            var rot = Quaternion.Euler(new Vector3(0f, initBuffer.ReadFloat(), 0f));
-            gameObject.transform.position = pos;
-            m_toRotate.rotation = rot;
+            base.Unsubscribe();
+            if (m_playerReplication != null)
+            {
+                m_playerReplication.PlayerName.Changed -= PlayerNameOnChanged;   
+            }
         }
 
         protected override void OnStartServer()
         {
+            SpawnType = m_spawnType;
             m_renderer.material = m_serverMat;
-            gameObject.name = $"{ID} (SERVER)";
+            gameObject.name = $"{NetworkId.Value} (SERVER)";
         }
 
         protected override void OnStartClient()
         {
             m_renderer.material = m_remoteMat;            
-            gameObject.name = $"{ID} (CLIENT)";
+            gameObject.name = $"{NetworkId.Value} (CLIENT)";
         }
 
         protected override void OnStartLocalClient()
         {
             m_renderer.material = m_localMat;
-            gameObject.name = $"{ID} (LOCAL)";
+            gameObject.name = $"{NetworkId.Value} (LOCAL)";
         }
         
         protected override void ProcessPacketInternal(OpCodes op, BitBuffer buffer)
@@ -104,7 +97,7 @@ namespace SoL.Networking.Objects
             base.ProcessPacketInternal(op, buffer);
             switch (op)
             {
-                case OpCodes.PositionUpdate:
+                case OpCodes.StateUpdate:
                     if (m_isLocal)
                     {
                         Debug.LogWarning("Receiving PositionUpdate for myself??");
@@ -161,7 +154,7 @@ namespace SoL.Networking.Objects
 
         private void UpdateLocal()
         {
-            if (m_isLocal == false)
+            if (m_isServer == false)
                 return;
             
             if (m_newData.HasValue == false)
@@ -179,9 +172,10 @@ namespace SoL.Networking.Objects
                 m_newData = new Vector4(newPos.x, newPos.y, newPos.z, Random.Range(0f, 1f) * 360f);
             }
 
-            if (CanUpdate())
+            /*  NO LONGER A PEER
+            if (Time.time > m_nextUpdate)
             {
-                m_buffer.AddEntityHeader(ClientNetworkSystem.MyPeer, OpCodes.PositionUpdate);
+                m_buffer.AddEntityHeader(ClientNetworkSystem.MyPeer, OpCodes.StateUpdate);
                 m_buffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
                 m_buffer.AddFloat(m_toRotate.eulerAngles.y);
 
@@ -194,6 +188,7 @@ namespace SoL.Networking.Objects
 
                 m_nextUpdate += m_updateRate;
             }
+            */
         }
     }
 }

@@ -6,95 +6,88 @@ using UnityEngine;
 
 namespace SoL.Networking.Objects
 {
-    public class PlayerObject : NetworkedObject
+    public class PlayerObject : NetworkEntity
     {
         [SerializeField] private GameObject m_camPos = null;
         [SerializeField] private TextMeshPro m_text = null;
-        private PlayerReplication m_playerReplication = null;
-        private Vector4? m_newData = null;
-        protected override IReplicationLayer m_replicationLayer => m_playerReplication;
 
-        protected override void Update()
+        private Vector4? m_newData = null;
+        private PlayerReplication m_playerReplication = null;
+
+        protected void Update()
         {
-            base.Update();
             LerpPositionRotation();
             UpdateLocal();
-        }
-        
-        protected override void AddLayers()
-        {
-            m_playerReplication = new PlayerReplication();
         }
         
         protected override void Subscribe()
         {
             base.Subscribe();
-            m_playerReplication.PlayerName.Changed += PlayerNameOnChanged;
+            if (m_playerReplication != null)
+            {
+                m_playerReplication.PlayerName.Changed += PlayerNameOnChanged;   
+            }
         }
 
         protected override void Unsubscribe()
         {
-            base.Unsubscribe();            
-            m_playerReplication.PlayerName.Changed -= PlayerNameOnChanged;
-        }
-        
-        public override BitBuffer AddInitialState(BitBuffer outBuffer)
-        {
-            outBuffer = base.AddInitialState(outBuffer);
-            outBuffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
-            outBuffer.AddFloat(gameObject.transform.eulerAngles.y);
-            return outBuffer;
+            base.Unsubscribe();
+            if (m_playerReplication != null)
+            {
+                m_playerReplication.PlayerName.Changed -= PlayerNameOnChanged;   
+            }
         }
 
-        protected override void ReadInitialState(BitBuffer initBuffer)
+        protected override void InitReplicationLayer()
         {
-            base.ReadInitialState(initBuffer);
-            var pos = initBuffer.ReadVector3(BaseNetworkSystem.Range);
-            var rot = Quaternion.Euler(new Vector3(0f, initBuffer.ReadFloat(), 0f));
-            gameObject.transform.SetPositionAndRotation(pos, rot);
+            base.InitReplicationLayer();
+            if (m_replicationLayer != null)
+            {
+                m_playerReplication = m_replicationLayer as PlayerReplication;   
+            }
         }
-        
+
         protected override void OnStartServer()
         {
-            gameObject.name = $"{ID} (SERVER)";
-            m_playerReplication.PlayerName.Value = ID.ToString();
+            gameObject.name = $"{NetworkId.Value} (SERVER)";
+            m_playerReplication.PlayerName.Value = NetworkId.Value.ToString();
         }
 
         protected override void OnStartClient()
         {
-            gameObject.name = $"{ID} (CLIENT)";
+            gameObject.name = $"{NetworkId.Value} (CLIENT)";
         }
 
         protected override void OnStartLocalClient()
         {
-            gameObject.name = $"{ID} (LOCAL)";
+            gameObject.name = $"{NetworkId.Value} (LOCAL)";
             Camera.main.gameObject.transform.SetParent(m_camPos.transform);
             Camera.main.gameObject.transform.localPosition = Vector3.zero;
             Camera.main.gameObject.transform.localRotation = Quaternion.identity;
         }
         
-        protected override void ProcessPacketInternal(OpCodes op, BitBuffer buffer)
+        protected override void ProcessPacketInternal(OpCodes op, BitBuffer inBuffer)
         {
-            base.ProcessPacketInternal(op, buffer);
+            base.ProcessPacketInternal(op, inBuffer);
             switch (op)
             {
-                case OpCodes.PositionUpdate:
+                case OpCodes.StateUpdate:
                     if (m_isLocal)
                     {
                         Debug.LogWarning("Receiving PositionUpdate for myself??");
                         break;   
                     }
                     
-                    var pos = buffer.ReadVector3(BaseNetworkSystem.Range);
-                    var rot = buffer.ReadFloat();
+                    var pos = inBuffer.ReadVector3(BaseNetworkSystem.Range);
+                    var rot = Quaternion.Euler(new Vector3(0f, inBuffer.ReadFloat(), 0f));
 
                     if (m_isServer)
                     {
-                        gameObject.transform.SetPositionAndRotation(pos, Quaternion.Euler(new Vector3(0f, rot, 0f)));
+                        gameObject.transform.SetPositionAndRotation(pos, rot);
                     }
                     else
                     {
-                        m_newData = new Vector4(pos.x, pos.y, pos.z, rot);   
+                        m_newData = new Vector4(pos.x, pos.y, pos.z, rot.eulerAngles.y);   
                     }
                     break;
                 
@@ -151,9 +144,9 @@ namespace SoL.Networking.Objects
                 gameObject.transform.Translate(movement.x, 0f, movement.y, Space.Self);
             }
 
-            if (CanUpdate())
+            if (Time.time > m_nextUpdate)
             {
-                m_buffer.AddEntityHeader(ClientNetworkSystem.MyPeer, OpCodes.PositionUpdate);
+                m_buffer.AddEntityHeader(this, OpCodes.StateUpdate);
                 m_buffer.AddVector3(gameObject.transform.position, BaseNetworkSystem.Range);
                 m_buffer.AddFloat(gameObject.transform.eulerAngles.y);
 

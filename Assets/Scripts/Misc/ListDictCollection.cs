@@ -8,7 +8,7 @@ namespace Misc
         private readonly List<TValue> m_list = null;
         private readonly Dictionary<TKey, TValue> m_dict = null;
 
-        private readonly bool m_replaceWhenPresent = false;
+        protected readonly bool m_replaceWhenPresent = false;
         
         public ListDictCollection(bool replace = false)
         {
@@ -19,7 +19,7 @@ namespace Misc
         
         #region ADD_REMOVE
 
-        public void Add(TKey key, TValue value)
+        public virtual void Add(TKey key, TValue value)
         {
             if (m_replaceWhenPresent)
             {
@@ -29,13 +29,12 @@ namespace Misc
             m_dict.Add(key, value);   
         }
 
-        public bool Remove(TKey key)
+        public virtual bool Remove(TKey key)
         {
             TValue value;
             if (m_dict.TryGetValue(key, out value))
             {
-                m_dict.Remove(key);
-                return m_list.Remove(value);
+                return m_dict.Remove(key) && m_list.Remove(value);
             }
             return false;
         }

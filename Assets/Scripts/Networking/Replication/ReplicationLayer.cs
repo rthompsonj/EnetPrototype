@@ -2,60 +2,42 @@
 using ENet;
 using NetStack.Serialization;
 using SoL.Networking.Managers;
+using SoL.Networking.Objects;
 using UnityEngine;
 
 namespace SoL.Networking.Replication
 {
     public interface IReplicationLayer
     {
-        void ServerInitialize(BaseNetworkSystem network, Peer peer, BitBuffer buffer, float updateRate);
-        void ClientInitialize();
+        void ServerInit(INetworkManager network, NetworkEntity netEntity, BitBuffer buffer, float updateRate);
+        void ClientInit();
 
         void ProcessSyncUpdate(BitBuffer buffer);
         BitBuffer WriteAllSyncData(BitBuffer outBuffer);
         void ReadAllSyncData(BitBuffer inBuffer);
-
-        void UpdateSyncs();
     }
     
-    public class ReplicationLayer : IReplicationLayer
+    public class ReplicationLayer : MonoBehaviour, IReplicationLayer
     {
         protected readonly List<ISynchronizedVariable> m_syncs = new List<ISynchronizedVariable>();
 
-        protected float m_updateRate = 0.1f;
-        protected float m_nextUpdate = 0f;
+        private float m_updateRate = 0.1f;
+        private float m_nextUpdate = 0f;
 
-        private BaseNetworkSystem m_network = null;
-        protected Peer m_peer;        
-        protected BitBuffer m_buffer = null;
-
-        public void ServerInitialize(BaseNetworkSystem network, Peer peer, BitBuffer buffer, float updateRate)
-        {
-            m_network = network;
-            m_peer = peer;
-            m_buffer = buffer;
-            m_updateRate = updateRate;
-            m_nextUpdate = Time.time + m_updateRate;
-            RegisterSyncs();
-        }
-
-        public void ClientInitialize()
-        {
-            RegisterSyncs();
-        }
+        private INetworkManager m_network = null;
+        private NetworkEntity m_networkEntity = null;
+        private BitBuffer m_buffer = null;
+        private bool m_isServer = false;
         
-        protected virtual int RegisterSyncs()
-        {
-            return 0;
-        }
+        #region MONO
 
-        /// <summary>
-        /// Only called on the server where the peer is present.
-        /// </summary>
-        public void UpdateSyncs()
+        void Update()
         {
-            if (CanUpdate() == false)
-                return;
+            if (m_isServer == false || Time.time < m_nextUpdate ||
+                (m_networkEntity.UseProximity && m_networkEntity.NObservers <= 0))
+            {
+                return;   
+            }
 
             m_nextUpdate += m_updateRate;
             
@@ -72,7 +54,7 @@ namespace SoL.Networking.Replication
             if (dirtyBits == 0)
                 return;
            
-            m_buffer.AddEntityHeader(m_peer, OpCodes.SyncUpdate);
+            m_buffer.AddEntityHeader(m_networkEntity, OpCodes.SyncUpdate);
             m_buffer.AddInt(dirtyBits);
 
             for (int i = 0; i < m_syncs.Count; i++)
@@ -85,14 +67,53 @@ namespace SoL.Networking.Replication
 
             var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
             var command = GameCommandPool.GetGameCommand();
-            command.Type = CommandType.BroadcastAll;
             command.Packet = packet;
             command.Channel = 0;
+            command.Source = m_networkEntity.NetworkId.Peer;
+            
+            if (m_networkEntity.UseProximity)
+            {
+                command.Type = CommandType.BroadcastGroup;
+                command.TargetGroup = m_networkEntity.GetObservingPeers(false);
+            }
+            else
+            {
+                command.Type = CommandType.BroadcastOthers;
+            }
 
             Debug.Log($"Sending dirtyBits: {dirtyBits}  Length: {packet.Length}");
 
             m_network.AddCommandToQueue(command);
         }
+        
+        #endregion
+        
+        #region INIT
+
+        public void ServerInit(INetworkManager network, NetworkEntity netEntity, BitBuffer buffer, float updateRate)
+        {
+            m_isServer = true;
+            m_network = network;
+            m_networkEntity = netEntity;
+            m_buffer = buffer;
+            m_updateRate = updateRate;
+            m_nextUpdate = Time.time + m_updateRate;
+            RegisterSyncs();
+        }
+
+        public void ClientInit()
+        {
+            RegisterSyncs();
+        }
+        
+        protected virtual int RegisterSyncs()
+        {
+            return 0;
+        }
+        
+        #endregion
+        
+        #region READ_WRITE
 
         public BitBuffer WriteAllSyncData(BitBuffer outBuffer)
         {
@@ -110,6 +131,8 @@ namespace SoL.Networking.Replication
                 m_syncs[i].ReadVariable(inBuffer);
             }
         }
+        
+        #endregion
 
         public void ProcessSyncUpdate(BitBuffer inBuffer)
         {
@@ -127,11 +150,6 @@ namespace SoL.Networking.Replication
                     m_syncs[i].ReadVariable(inBuffer);
                 }
             }
-        }
-
-        private bool CanUpdate()
-        {
-            return Time.time > m_nextUpdate;
         }
     }
 }

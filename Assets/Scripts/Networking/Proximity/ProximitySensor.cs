@@ -1,62 +1,84 @@
-using System;
 using SoL.Networking.Objects;
 using UnityEngine;
 
 namespace SoL.Networking.Proximity
 {
-    [Flags]
-    public enum SensorDistance
-    {
-        None = 0,
-        Near = 1 << 0,        
-        Far  = 1 << 1
-    }
-
-    public static class SensorDistanceExtensions
-    {
-        public static SensorDistance SetFlag(this SensorDistance a, SensorDistance b)
-        {
-            return a | b;
-        }
-
-        public static SensorDistance UnsetFlag(this SensorDistance a, SensorDistance b)
-        {
-            return a & (~b);
-        }
-
-        public static bool HasFlag(this SensorDistance a, SensorDistance b)
-        {
-            return (a & b) == b;
-        }
-    }
-    
     public class ProximitySensor : MonoBehaviour
     {
-        [SerializeField] private SensorDistance m_distance = SensorDistance.Near;
-        [SerializeField] private ProximityCoordinator m_coordinator = null;
+        private const string kLayerName = "Proximity";
+        
+        [SerializeField] private SensorBand m_band = SensorBand.None;
+        private Collider m_collider = null;
+        
+        public SensorBand SensorBand => m_band;
+        public NetworkEntity NetworkEntity { private get; set; }
+        public bool CanUpdate { get; private set; }
+        private float m_timeOfNextUpdate = 0f;
+
+        public void SetUpdateFlag()
+        {
+            if (m_band == SensorBand.None)
+                return;
+            
+            CanUpdate = Time.time > m_timeOfNextUpdate;
+
+            if (CanUpdate)
+            {
+                m_timeOfNextUpdate = Time.time + m_band.GetUpdateTime();
+            }
+        }
+
+        #region MONO
+        
+        /// <summary>
+        /// Check for collider and turn it off until we are initialized.
+        /// </summary>
+        private void Awake()
+        {
+            m_collider = gameObject.GetComponent<Collider>();
+            if (m_collider == null)
+            {
+                Debug.LogWarning($"No collider on {gameObject.name}!");
+                Destroy(gameObject);
+                return;
+            }
+            m_collider.enabled = false;
+            m_collider.isTrigger = true;
+            gameObject.layer = LayerMask.NameToLayer(kLayerName);
+        }
+
+        /// <summary>
+        /// Should be initialized so lets turn the collider back on.
+        /// </summary>
+        private void Start()
+        {
+            m_collider.enabled = true;
+        }
         
         private void OnTriggerEnter(Collider other)
         {
-            if (m_coordinator == null)
+            if (NetworkEntity == null)
                 return;
             
-            var obj = other.gameObject.GetComponent<NetworkedObject>();
+            var obj = other.gameObject.GetComponent<NetworkEntity>();
             if (obj != null)
             {
-                m_coordinator.TriggerEnter(obj, m_distance);
+                NetworkEntity.ProximitySensorEnter(this, obj);
             }
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (m_coordinator == null)
+            if (NetworkEntity == null)
                 return;
             
-            var obj = other.gameObject.GetComponent<NetworkedObject>();
+            var obj = other.gameObject.GetComponent<NetworkEntity>();
             if (obj != null)
             {
-                m_coordinator.TriggerExit(obj, m_distance);
+                NetworkEntity.ProximitySensorExit(this, obj);
             }
         }
+        
+        #endregion
     }
 }

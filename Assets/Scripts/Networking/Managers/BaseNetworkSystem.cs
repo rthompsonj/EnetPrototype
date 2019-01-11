@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using DisruptorUnity3d;
@@ -14,9 +13,20 @@ using EventType = ENet.EventType;
 
 namespace SoL.Networking.Managers
 {
-    public abstract class BaseNetworkSystem : MonoBehaviour
+    public abstract class BaseNetworkSystem : MonoBehaviour, INetworkManager
     {
+        //TODO: temp
+        public static BaseNetworkSystem Instance;
+        
         public const float kMaxRange = 32f;
+
+        private static uint m_nextNetworkId = 1;
+        public static NetworkId GetNetworkId(Peer peer)
+        {
+            var value = m_nextNetworkId;
+            m_nextNetworkId += 1;
+            return new NetworkId(value, peer);
+        }
         
         public static BoundedRange[] Range = new BoundedRange[]
         {
@@ -48,6 +58,8 @@ namespace SoL.Networking.Managers
         protected abstract void Disconnect(Event netEvent);
         protected abstract void ProcessPacket(Event netEvent);
 
+        protected virtual void UpdateStates() { }
+
         private Thread m_logicThread = null;
         private Thread m_networkThread = null;
 
@@ -64,9 +76,32 @@ namespace SoL.Networking.Managers
         protected readonly RingBuffer<Event> m_logicEventQueue = new RingBuffer<Event>(64);
         protected readonly RingBuffer<Event> m_transportEventQueue = new RingBuffer<Event>(64);
         
-        protected readonly ListDictCollection<uint, NetworkedObject> m_peers = new ListDictCollection<uint, NetworkedObject>(true);        
+        //protected readonly ListDictCollection<uint, NetworkedObject> m_peers = new ListDictCollection<uint, NetworkedObject>(true);        
+        
+        protected readonly ListDictCollection<uint, NetworkEntity> m_networkEntities = new ListDictCollection<uint, NetworkEntity>(true);        
+
+        public virtual void RegisterEntity(NetworkEntity entity)
+        {
+            m_networkEntities.Add(entity.NetworkId.Value, entity);
+        }
+
+        public virtual void DeregisterEntity(NetworkEntity entity)
+        {
+            m_networkEntities.Remove(entity.NetworkId.Value);
+        }
         
         #region MONO
+
+        //TODO: temp
+        private void Awake()
+        {
+            if (Instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+        }
         
         protected virtual void Start()
         {
@@ -80,13 +115,20 @@ namespace SoL.Networking.Managers
             m_networkThread.Start();
         }
 
-        protected virtual void OnDestroy()
+        private void OnDestroy()
+        {
+            var command = GameCommandPool.GetGameCommand();
+            command.Type = CommandType.StopHost;
+            m_commandQueue.Enqueue(command);
+        }
+
+        protected void TerminateThreads()
         {
             m_logicThreadActive = false;
-            m_networkThreadActive = false;
+            m_networkThreadActive = false;            
         }
         
-        protected virtual void Update()
+        private void Update()
         {
             Event netEvent;
             while (m_logicEventQueue.TryDequeue(out netEvent))
@@ -113,6 +155,10 @@ namespace SoL.Networking.Managers
                         break;                    
                 }
             }
+            
+            Profiler.BeginSample("Update States");
+            UpdateStates();
+            Profiler.EndSample();
             
             Profiler.BeginSample("Update Stats");
             UpdateStats();
@@ -151,6 +197,8 @@ namespace SoL.Networking.Managers
                                 break;
                         }
                     }
+
+                    Thread.Sleep(1);
                 }
             });
         }
@@ -159,11 +207,12 @@ namespace SoL.Networking.Managers
         {
             return new Thread(() =>
             {
-                int updateTime = 0;
+                int updateTime = (int)(1000f / 30f);
 
                 using (Host host = new Host())
                 {
                     m_host = host;
+                    
                     while (m_networkThreadActive)
                     {
                         GameCommand command = null;
@@ -217,6 +266,9 @@ namespace SoL.Networking.Managers
                             }
                         }
                     }
+                    
+                    host.Flush();
+                    host.Dispose();
                 }
             });           
         }

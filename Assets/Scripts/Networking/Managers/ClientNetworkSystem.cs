@@ -7,7 +7,7 @@ using Event = ENet.Event;
 
 namespace SoL.Networking.Managers
 {
-    public class ClientNetworkSystem : BaseNetworkSystem
+    public sealed class ClientNetworkSystem : BaseNetworkSystem
     {        
         private BitBuffer m_buffer = new BitBuffer(128);
 
@@ -24,14 +24,6 @@ namespace SoL.Networking.Managers
             command.Port = m_targetPort;
             command.UpdateTime = 0;
             command.ChannelCount = 100;
-            m_commandQueue.Enqueue(command);
-        }
-
-        protected override void OnDestroy()
-        {
-            base.OnDestroy();
-            var command = GameCommandPool.GetGameCommand();
-            command.Type = CommandType.StopHost;
             m_commandQueue.Enqueue(command);
         }
         
@@ -68,8 +60,7 @@ namespace SoL.Networking.Managers
             {
                 Peer.Disconnect((uint)OpCodes.Destroy);
             }
-            host.Flush();
-            host.Dispose();
+            TerminateThreads();
         }
         
         protected override void Func_Send(Host host, GameCommand command)
@@ -116,9 +107,9 @@ namespace SoL.Networking.Managers
             var buffer = m_buffer;
             var header = m_buffer.GetEntityHeader();
             var op = header.OpCode;
-            var id = header.ID;
+            var id = header.Id;
 
-            NetworkedObject nobj = null;
+            NetworkEntity netEntity = null;
 
             switch (op)
             {
@@ -141,7 +132,7 @@ namespace SoL.Networking.Managers
                 
                 case OpCodes.Spawn:
                     var spawnType = (Misc.SpawnType)m_buffer.ReadInt();
-                    nobj = SpawnNetworkedObject(id, buffer, spawnType);
+                    SpawnEntity(id, buffer, spawnType, netEvent.ChannelID);
                     break;
                 
                 case OpCodes.BulkSpawn:
@@ -150,39 +141,40 @@ namespace SoL.Networking.Managers
                     {
                         header = m_buffer.GetEntityHeader();
                         var bulkSpawnType = (Misc.SpawnType) m_buffer.ReadInt();
-                        SpawnNetworkedObject(header.ID, buffer, bulkSpawnType);
+                        SpawnEntity(header.Id, buffer, bulkSpawnType, netEvent.ChannelID);
                     }
                     break;
 		        
                 case OpCodes.Destroy:
-                    if (m_peers.TryGetValue(id, out nobj) && nobj.ID == id)
+                    if (m_networkEntities.TryGetValue(id, out netEntity) && netEntity.NetworkId.Value == id)
                     {
-                        m_peers.Remove(id);
-                        Destroy(nobj.gameObject);                        
+                        Destroy(netEntity.gameObject);
                     }
                     break;
 		        
-                case OpCodes.PositionUpdate:
+                case OpCodes.StateUpdate:
                 case OpCodes.SyncUpdate:
-                    if (m_peers.TryGetValue(id, out nobj))
+                    if (m_networkEntities.TryGetValue(id, out netEntity))
                     {
-                        nobj.ProcessPacket(op, buffer);
+                        netEntity.ProcessPacket(op, buffer);
                     }
                     else
                     {
-                        Debug.LogWarning($"Unable to locate entity ID: {id}");
+                        Debug.LogWarning($"No entity found for Id: {id}!");
                     }
                     break;
             }
         }
 
-        private NetworkedObject SpawnNetworkedObject(uint id, BitBuffer buffer, Misc.SpawnType spawnType)
+        private NetworkEntity SpawnEntity(uint id, BitBuffer inBuffer, Misc.SpawnType spawnType, byte channel)
         {
             var go = m_params.InstantiateSpawn(spawnType);
-            var nobj = go.GetComponent<NetworkedObject>();
-            nobj.ClientInitialize(this, id, buffer);
-            m_peers.Add(id, nobj);
-            return nobj;
+            var netEntity = go.GetComponent<NetworkEntity>();
+            if (netEntity != null)
+            {
+                netEntity.ClientInit(this, id, inBuffer, channel);   
+            }
+            return netEntity;
         }
         
         #endregion

@@ -1,3 +1,4 @@
+using System;
 using ENet;
 using NetStack.Compression;
 using NetStack.Serialization;
@@ -9,7 +10,7 @@ namespace SoL.Networking
 {
     public struct PacketHeader
     {
-        public uint ID;
+        public uint Id;
         public OpCodes OpCode;
     }
 
@@ -49,6 +50,7 @@ namespace SoL.Networking
             return packet;
         }
         
+        [Obsolete("Use NetworkEntity instead!")]
         public static BitBuffer AddEntityHeader(this BitBuffer buffer, Peer peer, OpCodes opCode, bool clearBuffer = true)
         {
             if (clearBuffer)
@@ -57,13 +59,23 @@ namespace SoL.Networking
             }
             buffer.AddUShort((ushort) opCode).AddUInt(peer.ID);
             return buffer;
-        }   
+        }
+
+        public static BitBuffer AddEntityHeader(this BitBuffer buffer, NetworkEntity entity, OpCodes opCode, bool clearBuffer = true)
+        {
+            if (clearBuffer)
+            {
+                buffer.Clear();   
+            }
+            buffer.AddUShort((ushort) opCode).AddUInt(entity.NetworkId.Value);
+            return buffer;            
+        }
         
         public static PacketHeader GetEntityHeader(this BitBuffer buffer)
         {
             PacketHeader header = default(PacketHeader);
             header.OpCode = (OpCodes)buffer.ReadUShort();
-            header.ID = buffer.ReadUInt();
+            header.Id = buffer.ReadUInt();
             return header;
         }
 
@@ -118,11 +130,11 @@ namespace SoL.Networking
                 buffer.ReadUInt(),
                 buffer.ReadUInt());
             return BoundedRange.Decompress(compressed, range);
-        }
-        
-        public static BitBuffer AddInitialState(this BitBuffer buffer, NetworkedObject nobj)
+        }        
+
+        public static BitBuffer AddInitialState(this BitBuffer buffer, NetworkEntity netEntity)
         {
-            return nobj.AddInitialState(buffer);
+            return netEntity.AddInitialState(buffer);
         }
     }
 }

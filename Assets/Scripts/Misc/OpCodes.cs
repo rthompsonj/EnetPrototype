@@ -8,7 +8,7 @@ namespace SoL.Networking
         Spawn,
         BulkSpawn,
         Destroy,
-        PositionUpdate,
+        StateUpdate,
         SyncUpdate
     }
 }
