@@ -199,25 +199,32 @@ namespace SoL.Networking.Objects
             return inBuffer;
         }        
 
-        public Peer[] GetObservingPeers(bool considerProximityBands = true)
+        public Peer[] GetObservingPeers(bool considerProximityBands = true, bool includeSelf = false)
         {
-            int cnt = 0;
-            var peerGroup = PeerArrayPool.GetArray(m_observers.Count);
+            int nObservers = (includeSelf && NetworkId.HasPeer) ? m_observers.Count + 1 : m_observers.Count;
 
+            var peerGroup = PeerArrayPool.GetArray(nObservers);                        
+            int index = 0;
+
+            if (includeSelf && NetworkId.HasPeer)
+            {
+                peerGroup[index] = NetworkId.Peer;
+                index += 1;
+            }
+            
             if (considerProximityBands == false)
             {
                 foreach (var kvp in m_observers)
                 {
                     if (kvp.Value.NetworkEntity != null && kvp.Value.NetworkEntity.NetworkId.HasPeer)
                     {
-                        peerGroup[cnt] = kvp.Value.NetworkEntity.NetworkId.Peer;
-                        cnt += 1;
+                        peerGroup[index] = kvp.Value.NetworkEntity.NetworkId.Peer;
+                        index += 1;
                     }
                 }
 
                 return peerGroup;
             }
-
 
             for (int i = 0; i < m_proximitySensors.Length; i++)
             {
@@ -231,8 +238,8 @@ namespace SoL.Networking.Objects
                     if (sensor.CanUpdate && kvp.Value.Band.HasFlag(sensor.SensorBand) && 
                         kvp.Value.NetworkEntity != null && kvp.Value.NetworkEntity.NetworkId.HasPeer)
                     {
-                        peerGroup[cnt] = kvp.Value.NetworkEntity.NetworkId.Peer;
-                        cnt += 1;
+                        peerGroup[index] = kvp.Value.NetworkEntity.NetworkId.Peer;
+                        index += 1;
                         break;
                     }
                 }
@@ -288,7 +295,7 @@ namespace SoL.Networking.Objects
 
         public void ProximitySensorEnter(ProximitySensor sensor, NetworkEntity netEntity)
         {
-            if (m_isServer == false)
+            if (m_isServer == false || netEntity == this)
                 return;
             
             Observer observer;
@@ -326,7 +333,7 @@ namespace SoL.Networking.Objects
 
         public void ProximitySensorExit(ProximitySensor sensor, NetworkEntity netEntity)
         {
-            if (m_isServer == false)
+            if (m_isServer == false || netEntity == this)
                 return;
             
             Observer observer;

@@ -74,11 +74,11 @@ namespace SoL.Networking.Replication
             if (m_networkEntity.UseProximity)
             {
                 command.Type = CommandType.BroadcastGroup;
-                command.TargetGroup = m_networkEntity.GetObservingPeers(false);
+                command.TargetGroup = m_networkEntity.GetObservingPeers(false, true);
             }
             else
             {
-                command.Type = CommandType.BroadcastOthers;
+                command.Type = CommandType.BroadcastAll;
             }
 
             Debug.Log($"Sending dirtyBits: {dirtyBits}  Length: {packet.Length}");
