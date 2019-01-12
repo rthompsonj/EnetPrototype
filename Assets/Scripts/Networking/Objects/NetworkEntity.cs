@@ -70,13 +70,13 @@ namespace SoL.Networking.Objects
             OnStartServer();
         }
 
-        public void ClientInit(INetworkManager network, uint networkId, BitBuffer inBuffer, byte channel)
+        public void ClientInit(INetworkManager network, uint networkId, BitBuffer inBuffer, NetworkChannel channel)
         {
             NetworkId = new NetworkId(networkId);
             m_network = network;
             
             m_isClient = true;
-            m_isLocal = channel == 0;            
+            m_isLocal = channel == NetworkChannel.Spawn_Self;
             
             InitReplicationLayer();
 
@@ -156,7 +156,7 @@ namespace SoL.Networking.Objects
             var packet = m_buffer.GetPacketFromBuffer(PacketFlags.None);
             var command = GameCommandPool.GetGameCommand();
             command.Packet = packet;
-            command.Channel = 2;
+            command.Channel = NetworkChannel.State_Server;
             command.Source = NetworkId.Peer;
 
             if (UseProximity)
@@ -258,7 +258,7 @@ namespace SoL.Networking.Objects
                 var packet = m_buffer.GetPacketFromBuffer(PacketFlags.Reliable);
                 var command = GameCommandPool.GetGameCommand();
                 command.Type = CommandType.BroadcastAll;
-                command.Channel = 1;
+                command.Channel = NetworkChannel.Destroy_Server;
                 command.Packet = packet;
                 m_network.AddCommandToQueue(command);
             }            
@@ -325,7 +325,7 @@ namespace SoL.Networking.Objects
                 var command = GameCommandPool.GetGameCommand();
                 command.Type = CommandType.Send;
                 command.Target = netEntity.NetworkId.Peer;
-                command.Channel = 1;
+                command.Channel = NetworkChannel.Spawn_Other;
                 command.Packet = packet;
                 m_network.AddCommandToQueue(command);
             }
@@ -350,7 +350,7 @@ namespace SoL.Networking.Objects
                     var command = GameCommandPool.GetGameCommand();
                     command.Type = CommandType.Send;
                     command.Target = netEntity.NetworkId.Peer;
-                    command.Channel = 1;
+                    command.Channel = NetworkChannel.Destroy_Server;
                     command.Packet = packet;
                     m_network.AddCommandToQueue(command);
                 }

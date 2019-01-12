@@ -67,7 +67,7 @@ namespace SoL.Networking.Managers
         {
             if (Peer.IsSet)
             {
-                Peer.Send(command.Channel, ref command.Packet);
+                Peer.Send(command.Channel.GetByte(), ref command.Packet);
             }
         }
         
@@ -124,7 +124,7 @@ namespace SoL.Networking.Managers
                             var command = GameCommandPool.GetGameCommand();
                             command.Type = CommandType.Send;
                             command.Packet = packet;
-                            command.Channel = 0;
+                            command.Channel = NetworkChannel.Spawn_Self;
                             m_commandQueue.Enqueue(command);
                             break;
                     }
@@ -172,7 +172,7 @@ namespace SoL.Networking.Managers
             var netEntity = go.GetComponent<NetworkEntity>();
             if (netEntity != null)
             {
-                netEntity.ClientInit(this, id, inBuffer, channel);   
+                netEntity.ClientInit(this, id, inBuffer, NetworkChannelExtensions.GetChannel(channel));   
             }
             return netEntity;
         }

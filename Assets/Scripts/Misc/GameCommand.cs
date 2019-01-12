@@ -29,7 +29,7 @@ namespace SoL.Networking
         public Peer[] TargetGroup;
 
         public Packet Packet;
-        public byte Channel;
+        public NetworkChannel Channel;
 
         public void Reset()
         {
@@ -44,7 +44,7 @@ namespace SoL.Networking
             TargetGroup = null;
             
             Packet = default(Packet);
-            Channel = 0;
+            Channel = NetworkChannel.Invalid;
         }
     }
     

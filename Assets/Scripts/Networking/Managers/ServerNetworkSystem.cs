@@ -99,13 +99,13 @@ namespace SoL.Networking.Managers
         {
             if (command.Target.IsSet)
             {
-                command.Target.Send(command.Channel, ref command.Packet);   
+                command.Target.Send(command.Channel.GetByte(), ref command.Packet);   
             }
         }
         
         protected override void Func_BroadcastAll(Host host, GameCommand command)
         {
-            host.Broadcast(command.Channel, ref command.Packet);
+            host.Broadcast(command.Channel.GetByte(), ref command.Packet);
         }
         
         protected override void Func_BroadcastOthers(Host host, GameCommand command)
@@ -114,7 +114,7 @@ namespace SoL.Networking.Managers
             {
                 if (m_peers[i].NetworkId.Peer.ID != command.Source.ID && m_peers[i].NetworkId.Peer.IsSet)
                 {                    
-                    m_peers[i].NetworkId.Peer.Send(command.Channel, ref command.Packet);
+                    m_peers[i].NetworkId.Peer.Send(command.Channel.GetByte(), ref command.Packet);
                 }
             }
         }
@@ -131,7 +131,7 @@ namespace SoL.Networking.Managers
                 }
             }
             */
-            host.Broadcast(command.Channel, ref command.Packet, ref command.TargetGroup);
+            host.Broadcast(command.Channel.GetByte(), ref command.Packet, ref command.TargetGroup);
             PeerArrayPool.ReturnArray(command.TargetGroup);
         }
 
@@ -144,7 +144,7 @@ namespace SoL.Networking.Managers
             var command = GameCommandPool.GetGameCommand();
             command.Type = CommandType.Send;
             command.Packet = packet;
-            command.Channel = 0;
+            command.Channel = NetworkChannel.Spawn_Self;
             command.Target = netEvent.Peer;
             m_commandQueue.Enqueue(command);
             //SpawnRemotePlayer(netEvent.Peer);
@@ -168,7 +168,7 @@ namespace SoL.Networking.Managers
                     var command = GameCommandPool.GetGameCommand();
                     command.Type = CommandType.BroadcastAll;
                     command.Packet = packet;
-                    command.Channel = 0;
+                    command.Channel = NetworkChannel.Destroy_Server;
                     m_commandQueue.Enqueue(command);                    
                 }
             }
@@ -197,7 +197,9 @@ namespace SoL.Networking.Managers
             switch (op)
             {
                 case OpCodes.Spawn:
-                    var spawnType = (Misc.SpawnType)m_buffer.ReadInt();
+                    var spawnTypeInt = m_buffer.ReadInt();
+                    var spawnType = (Misc.SpawnType) spawnTypeInt;
+                    Debug.Log($"Spawning {spawnType} ({spawnTypeInt})");
                     SpawnRemoteEntity(netEvent.Peer, spawnType);
                     break;
                 
@@ -237,7 +239,7 @@ namespace SoL.Networking.Managers
             var spawnPlayerCommand = GameCommandPool.GetGameCommand();
             spawnPlayerCommand.Type = CommandType.Send;
             spawnPlayerCommand.Target = peer;
-            spawnPlayerCommand.Channel = 0;
+            spawnPlayerCommand.Channel = NetworkChannel.Spawn_Self;
             spawnPlayerCommand.Packet = spawnPlayerPacket;
 
             m_commandQueue.Enqueue(spawnPlayerCommand);
@@ -245,7 +247,7 @@ namespace SoL.Networking.Managers
             var spawnPlayerForOthersCommand = GameCommandPool.GetGameCommand();
             spawnPlayerForOthersCommand.Type = CommandType.BroadcastOthers;
             spawnPlayerForOthersCommand.Source = peer;
-            spawnPlayerForOthersCommand.Channel = 1;
+            spawnPlayerForOthersCommand.Channel = NetworkChannel.Spawn_Other;
             spawnPlayerForOthersCommand.Packet = spawnPlayerPacket;
 
             m_commandQueue.Enqueue(spawnPlayerForOthersCommand);
@@ -290,7 +292,7 @@ namespace SoL.Networking.Managers
             var spawnOthersCommand = GameCommandPool.GetGameCommand();
             spawnOthersCommand.Type = CommandType.Send;
             spawnOthersCommand.Packet = spawnOthersPacket;
-            spawnOthersCommand.Channel = 1;
+            spawnOthersCommand.Channel = NetworkChannel.Spawn_Other;
             spawnOthersCommand.Target = netEntity.NetworkId.Peer;
             
             m_commandQueue.Enqueue(spawnOthersCommand);

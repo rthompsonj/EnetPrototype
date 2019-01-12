@@ -12,6 +12,20 @@ namespace SoL.Networking.Objects
         
         private PlayerReplication m_playerReplication = null;
         
+        private void OnMouseDown()
+        {
+            GenerateName();
+        }
+
+        [ContextMenu("Generate Name")]
+        private void GenerateName()
+        {
+            if (m_isServer && m_playerReplication != null)
+            {
+                m_playerReplication.PlayerName.Value = System.Guid.NewGuid().ToString();                
+            }            
+        }
+        
         protected override void Update()
         {
             base.Update();
@@ -55,7 +69,7 @@ namespace SoL.Networking.Objects
                 var packet = m_buffer.GetPacketFromBuffer(PacketFlags.None);
                 var command = GameCommandPool.GetGameCommand();
                 command.Packet = packet;
-                command.Channel = 0;
+                command.Channel = NetworkChannel.State_Client;
                 command.Source = NetworkId.Peer;
                 command.Type = CommandType.Send;
 
